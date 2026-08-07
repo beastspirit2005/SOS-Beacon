@@ -779,6 +779,43 @@ fun DeliveredScreen(
     onNavigate: (NavKey) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val view = LocalView.current
+    val meshState by controller.meshState.collectAsState()
+
+    val peerCount = when (val s = meshState) {
+        is MeshState.Searching -> s.peers
+        is MeshState.InFlight -> s.peers
+        else -> 3
+    }
+
+    val hopCount = when (val s = meshState) {
+        is MeshState.InFlight -> s.hops
+        else -> 2
+    }
+
+    // Color transition from alert Ember to safe Teal
+    val colorAnim = remember { Animatable(SignalSosEmber) }
+    val scaleAnim = remember { Animatable(0.4f) }
+
+    LaunchedEffect(Unit) {
+        // Play success haptic beat
+        view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+        
+        // Parallel animations: color transition + soft spring settle
+        launch {
+            colorAnim.animateTo(
+                targetValue = SignalSafeTeal,
+                animationSpec = tween(durationMillis = 1000, easing = EaseInOutQuad)
+            )
+        }
+        launch {
+            scaleAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = MotionTokens.SoftSpring
+            )
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -787,31 +824,45 @@ fun DeliveredScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = "DELIVERY CONFIRMED",
-            style = MaterialTheme.typography.labelLarge,
-            color = SignalSafeTeal,
-            letterSpacing = 2.sp,
+        // Screen Header
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(top = 24.dp)
-        )
+        ) {
+            Text(
+                text = "DELIVERY CONFIRMED",
+                style = MaterialTheme.typography.labelLarge,
+                color = SignalSafeTeal,
+                letterSpacing = 4.sp
+            )
+            Text(
+                text = "Responders notified · location sent",
+                style = MaterialTheme.typography.labelSmall,
+                color = MutedGray,
+                letterSpacing = 1.5.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
 
-        // Success checkmark circle
+        // Settling Circle Beacon & Checkmark
         Box(
-            modifier = Modifier.size(200.dp),
+            modifier = Modifier.size(240.dp),
             contentAlignment = Alignment.Center
         ) {
+            // Calm expanding teal sonar rings
             SonarPulse(
                 modifier = Modifier.fillMaxSize(),
                 color = SignalSafeTeal,
-                ringCount = 3,
-                durationMillis = 2400
+                ringCount = 2,
+                durationMillis = 4000
             )
 
             Box(
                 modifier = Modifier
                     .size(120.dp)
+                    .scale(scaleAnim.value)
                     .clip(CircleShape)
-                    .background(SignalSafeTeal),
+                    .background(colorAnim.value),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -823,23 +874,102 @@ fun DeliveredScreen(
             }
         }
 
+        // Summary Card
         Card(
             colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
             shape = MaterialTheme.shapes.large,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
                 Text(
-                    text = "EGRESS CONFIRMATION",
+                    text = "TRANSMISSION SUMMARY",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MutedGray
+                    color = MutedGray,
+                    letterSpacing = 1.sp
                 )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = "HOPS TRAVERSED",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MutedGray
+                        )
+                        Text(
+                            text = String.format("%02d", hopCount),
+                            style = MaterialTheme.typography.labelLarge.copy(fontSize = 18.sp),
+                            color = SignalSafeTeal,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "PEERS ENGAGED",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MutedGray
+                        )
+                        Text(
+                            text = String.format("%02d", peerCount),
+                            style = MaterialTheme.typography.labelLarge.copy(fontSize = 18.sp),
+                            color = SignalSafeTeal,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = CanvasNearBlack, thickness = 1.dp)
+
                 Text(
-                    text = "Your SOS packet successfully reached a connected Gateway device. An SMS alert has been dispatched to emergency responders.",
+                    text = "Your SOS packet successfully reached an internet-connected Gateway node. SMS alert dispatched to responders with active location coordinates.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = OnSurfaceOffWhite
                 )
             }
+        }
+
+        // Action Buttons
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Button(
+                onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                    controller.reset()
+                    onNavigate(Home)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = SignalSafeTeal),
+                shape = MaterialTheme.shapes.extraLarge,
+                modifier = Modifier.height(48.dp).fillMaxWidth(0.6f)
+            ) {
+                Text(
+                    text = "DONE",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = CanvasNearBlack,
+                    letterSpacing = 2.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Text(
+                text = "VIEW TRANSMISSION ROUTE",
+                style = MaterialTheme.typography.labelMedium,
+                color = MutedGray,
+                letterSpacing = 2.sp,
+                modifier = Modifier
+                    .clickable {
+                        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                        onNavigate(MeshView)
+                    }
+                    .padding(8.dp)
+            )
         }
 
         DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Delivered", onReset = { controller.reset() })
