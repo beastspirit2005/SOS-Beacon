@@ -17,6 +17,7 @@ class FakeSosController : SosController {
     private val _meshState = MutableStateFlow<MeshState>(MeshState.Idle)
     override val meshState: StateFlow<MeshState> = _meshState
 
+    val soundEnabled = MutableStateFlow(false)
     private val _deliveryState = MutableStateFlow<DeliveryState>(DeliveryState.Idle)
     override val deliveryState: StateFlow<DeliveryState> = _deliveryState
 

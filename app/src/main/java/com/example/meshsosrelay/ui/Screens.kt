@@ -30,6 +30,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation3.runtime.NavKey
@@ -110,25 +112,38 @@ fun DebugNavigationFooter(
 
 @Composable
 fun AmbientNetworkBackground(modifier: Modifier = Modifier) {
+    val isReducedMotion = isReducedMotionEnabled()
     val infiniteTransition = rememberInfiniteTransition(label = "ambient")
-    val radiusMultiplier by infiniteTransition.animateFloat(
-        initialValue = 0.96f,
-        targetValue = 1.04f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 8000, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "radiusScale"
-    )
-    val rotationAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 90000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "rotation"
-    )
+    
+    val radiusMultiplier = if (isReducedMotion) {
+        1.0f
+    } else {
+        val multiplier by infiniteTransition.animateFloat(
+            initialValue = 0.96f,
+            targetValue = 1.04f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 8000, easing = EaseInOutSine),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "radiusScale"
+        )
+        multiplier
+    }
+    
+    val rotationAngle = if (isReducedMotion) {
+        0f
+    } else {
+        val angle by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 90000, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "rotation"
+        )
+        angle
+    }
 
     Canvas(modifier = modifier.fillMaxSize()) {
         val center = size.center
@@ -176,7 +191,11 @@ fun HomeScreen(
     val deliveryState by controller.deliveryState.collectAsState()
     val scope = rememberCoroutineScope()
     val view = LocalView.current
-    
+    val isReducedMotion = isReducedMotionEnabled()
+
+    // 4. Custom Mock Permission Request Screen - avoids system dialog dump!
+    var permissionGranted by remember { mutableStateOf(false) }
+
     val peerCount = when (val state = meshState) {
         is MeshState.Searching -> state.peers
         is MeshState.InFlight -> state.peers
@@ -192,182 +211,285 @@ fun HomeScreen(
         // Ambient network lines
         AmbientNetworkBackground()
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            // App Header
+        if (!permissionGranted) {
+            // High-contrast permission state screen
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(top = 24.dp)
-            ) {
-                Text(
-                    text = "MESH SOS RELAY",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = SignalSafeTeal,
-                    letterSpacing = 4.sp
-                )
-                Text(
-                    text = "OFFLINE EMERGENCY NETWORK",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MutedGray,
-                    letterSpacing = 1.5.sp,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-
-            // Animated Status Line in Teal (Mesh Health)
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
-                    .clip(MaterialTheme.shapes.large)
-                    .background(SurfaceNearBlack)
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .fillMaxSize()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(if (peerCount > 0) SignalSafeTeal else SignalSosEmber)
-                )
-                if (peerCount > 0) {
-                    Text(
-                        text = "Mesh active · ",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = OnSurfaceOffWhite
-                    )
-                    AnimatedContent(
-                        targetState = peerCount,
-                        transitionSpec = {
-                            slideInVertically { height -> height } + fadeIn() togetherWith
-                            slideOutVertically { height -> -height } + fadeOut()
-                        },
-                        label = "peerCountAnimation"
-                    ) { targetCount ->
-                        Text(
-                            text = String.format("%02d", targetCount),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = SignalSafeTeal,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Text(
-                        text = " peers nearby",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = OnSurfaceOffWhite
-                    )
-                } else {
-                    Text(
-                        text = "Searching for peers...",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MutedGray
-                    )
-                }
-            }
-
-            // Central breathing SOS action button
-            Box(
-                modifier = Modifier.size(300.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                // Sonar pulse rings breathing every 3s
-                SonarPulse(
-                    modifier = Modifier.fillMaxSize(),
-                    color = SignalSosEmber,
-                    ringCount = 3,
-                    durationMillis = 3000
-                )
-
-                // Stiff spring button scaling
-                val scale = remember { Animatable(1f) }
-
-
-                Box(
-                    modifier = Modifier
-                        .size(160.dp)
-                        .scale(scale.value)
-                        .clip(CircleShape)
-                        .background(SignalSosEmber)
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onPress = {
-                                    scope.launch {
-                                        scale.animateTo(0.85f, animationSpec = MotionTokens.StiffSpring)
-                                    }
-                                    tryAwaitRelease()
-                                    scope.launch {
-                                        scale.animateTo(1f, animationSpec = MotionTokens.SoftSpring)
-                                    }
-                                },
-                                onTap = {
-                                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                                    controller.trigger(SosDraft("critical", "Emergency manual SOS trigger from HomeScreen"))
-                                    onNavigate(Sending)
-                                }
-                            )
-                        },
+                    modifier = Modifier.size(120.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "SOS",
-                            style = MaterialTheme.typography.headlineLarge.copy(fontSize = 38.sp),
-                            color = CanvasNearBlack,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "TAP & HOLD",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = CanvasNearBlack.copy(alpha = 0.8f),
-                            letterSpacing = 1.sp
-                        )
-                    }
-                }
-            }
-
-            // Secondary controls: I'm safe & Relayed alerts link
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                        controller.reset()
-                    },
-                    border = BorderStroke(1.dp, MutedGray.copy(alpha = 0.3f)),
-                    shape = MaterialTheme.shapes.extraLarge,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = OnSurfaceOffWhite),
-                    modifier = Modifier.height(48.dp)
-                ) {
+                    SonarPulse(
+                        modifier = Modifier.fillMaxSize(),
+                        color = SignalSosEmber,
+                        ringCount = 2,
+                        durationMillis = 4000
+                    )
                     Text(
-                        text = "I'M SAFE",
-                        style = MaterialTheme.typography.labelLarge,
-                        letterSpacing = 2.sp,
-                        color = OnSurfaceOffWhite
+                        text = "📍",
+                        style = MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp)
                     )
                 }
 
+                Spacer(modifier = Modifier.height(24.dp))
+
                 Text(
-                    text = "VIEW RELAYED ALERTS",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MutedGray,
+                    text = "BLUETOOTH & LOCATION REQUIRED",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = SignalSosEmber,
+                    fontWeight = FontWeight.Bold,
                     letterSpacing = 2.sp,
+                    textAlign = TextAlign.Center
+                )
+
+                Text(
+                    text = "Mesh SOS operates completely offline by creating local radio bridges with nearby devices. We require location permissions to discover active peer frequencies.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MutedGray,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 12.dp, start = 16.dp, end = 16.dp)
+                )
+
+                Spacer(modifier = Modifier.height(36.dp))
+
+                Button(
+                    onClick = {
+                        view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                        permissionGranted = true
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = SignalSosEmber),
+                    shape = MaterialTheme.shapes.extraLarge,
                     modifier = Modifier
-                        .clickable {
+                        .height(48.dp)
+                        .fillMaxWidth(0.7f)
+                        .semantics { contentDescription = "Grant mock Bluetooth and Location permissions" }
+                ) {
+                    Text(
+                        text = "GRANT ACCESS",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = CanvasNearBlack,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.5.sp
+                    )
+                }
+            }
+        } else {
+            // Main Home Screen Layout
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Header with settings toggle
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 24.dp)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.align(Alignment.Center)
+                    ) {
+                        Text(
+                            text = "MESH SOS RELAY",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = SignalSafeTeal,
+                            letterSpacing = 4.sp
+                        )
+                        Text(
+                            text = "OFFLINE EMERGENCY NETWORK",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MutedGray,
+                            letterSpacing = 1.5.sp,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+
+                    // 2. Sound Toggle (Muted by default)
+                    val soundOn by controller.soundEnabled.collectAsState()
+                    IconButton(
+                        onClick = {
                             view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                            onNavigate(ReceivedAlerts)
+                            controller.soundEnabled.value = !soundOn
+                        },
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .semantics { contentDescription = "Toggle emergency sonar audio alarm sound" }
+                    ) {
+                        Text(
+                            text = if (soundOn) "🔊" else "🔇",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                }
+
+                // Status banner line
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .clip(MaterialTheme.shapes.large)
+                        .background(SurfaceNearBlack)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(if (peerCount > 0) SignalSafeTeal else SignalSosEmber)
+                    )
+                    if (peerCount > 0) {
+                        Text(
+                            text = "Mesh active · ",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = OnSurfaceOffWhite
+                        )
+                        AnimatedContent(
+                            targetState = peerCount,
+                            transitionSpec = {
+                                slideInVertically { height -> height } + fadeIn() togetherWith
+                                slideOutVertically { height -> -height } + fadeOut()
+                            },
+                            label = "peerCountAnimation"
+                        ) { targetCount ->
+                            Text(
+                                text = String.format("%02d", targetCount),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = SignalSafeTeal,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
-                        .padding(8.dp)
+                        Text(
+                            text = " peers nearby",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = OnSurfaceOffWhite
+                        )
+                    } else {
+                        Text(
+                            text = "Searching for peers...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MutedGray
+                        )
+                    }
+                }
+
+                // Central breathing SOS action button
+                Box(
+                    modifier = Modifier.size(300.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // rings breathe every 3s (unless reduced motion is checked)
+                    SonarPulse(
+                        modifier = Modifier.fillMaxSize(),
+                        color = SignalSosEmber,
+                        ringCount = 3,
+                        durationMillis = 3000
+                    )
+
+                    // Stiff spring button scaling
+                    val scale = remember { Animatable(1f) }
+
+                    Box(
+                        modifier = Modifier
+                            .size(160.dp)
+                            .scale(scale.value)
+                            .clip(CircleShape)
+                            .background(SignalSosEmber)
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onPress = {
+                                        scope.launch {
+                                            scale.animateTo(0.85f, animationSpec = MotionTokens.StiffSpring)
+                                        }
+                                        tryAwaitRelease()
+                                        scope.launch {
+                                            scale.animateTo(1f, animationSpec = MotionTokens.SoftSpring)
+                                        }
+                                    },
+                                    onTap = {
+                                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                        controller.trigger(SosDraft("critical", "Emergency manual SOS trigger from HomeScreen"))
+                                        onNavigate(Sending)
+                                    }
+                                )
+                            }
+                            .semantics { contentDescription = "Double tap to trigger emergency manual SOS broadcast" },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "SOS",
+                                style = MaterialTheme.typography.headlineLarge.copy(fontSize = 38.sp),
+                                color = CanvasNearBlack,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "TAP & HOLD",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = CanvasNearBlack.copy(alpha = 0.8f),
+                                letterSpacing = 1.sp
+                            )
+                        }
+                    }
+                }
+
+                // Secondary controls: I'm safe & Relayed alerts feed
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                            controller.reset()
+                        },
+                        border = BorderStroke(1.dp, MutedGray.copy(alpha = 0.3f)),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = OnSurfaceOffWhite),
+                        modifier = Modifier
+                            .height(48.dp)
+                            .semantics { contentDescription = "Mark status as safe and cancel broadcast" }
+                    ) {
+                        Text(
+                            text = "I'M SAFE",
+                            style = MaterialTheme.typography.labelLarge,
+                            letterSpacing = 2.sp,
+                            color = OnSurfaceOffWhite
+                        )
+                    }
+
+                    Text(
+                        text = "VIEW RELAYED ALERTS",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MutedGray,
+                        letterSpacing = 2.sp,
+                        modifier = Modifier
+                            .clickable {
+                                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                                onNavigate(ReceivedAlerts)
+                            }
+                            .padding(8.dp)
+                            .semantics { contentDescription = "Inspect offline relayed alerts feed" }
+                    )
+                }
+
+                DebugNavigationFooter(
+                    onNavigate = onNavigate,
+                    currentRoute = "Home",
+                    onReset = {
+                        controller.reset()
+                        permissionGranted = false
+                    }
                 )
             }
-
-            DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Home", onReset = { controller.reset() })
         }
     }
 }
