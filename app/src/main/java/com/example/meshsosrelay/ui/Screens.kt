@@ -558,12 +558,25 @@ fun StatusScreen(
     val meshState by controller.meshState.collectAsState()
     val deliveryState by controller.deliveryState.collectAsState()
     val topology by controller.meshTopology.collectAsState()
+    val view = LocalView.current
 
-    // Automatically navigate to delivered once notified
+    // Auto-navigate to Delivered screen when delivery state is Notified
     LaunchedEffect(deliveryState) {
         if (deliveryState is DeliveryState.Notified) {
+            view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
             onNavigate(Delivered)
         }
+    }
+
+    val peerCount = when (val s = meshState) {
+        is MeshState.Searching -> s.peers
+        is MeshState.InFlight -> s.peers
+        else -> 0
+    }
+
+    val hopCount = when (val s = meshState) {
+        is MeshState.InFlight -> s.hops
+        else -> 0
     }
 
     Column(
@@ -574,108 +587,187 @@ fun StatusScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = "BROADCASTING ACTIVE",
-            style = MaterialTheme.typography.labelLarge,
-            color = SignalSosEmber,
-            letterSpacing = 2.sp,
+        // Status Title
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(top = 24.dp)
-        )
+        ) {
+            Text(
+                text = if (meshState is MeshState.Searching) "REACHING PEERS" else "RELAYING SOS ALERT",
+                style = MaterialTheme.typography.labelLarge,
+                color = SignalSosEmber,
+                letterSpacing = 4.sp
+            )
+            Text(
+                text = if (meshState is MeshState.Searching) "Broadcasting search query..." else "Packet propagating through mesh",
+                style = MaterialTheme.typography.labelSmall,
+                color = MutedGray,
+                letterSpacing = 1.5.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
 
-        // Topology path card
+        // Live concentric wave showing physical hopping motion
+        Box(
+            modifier = Modifier.size(200.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            // Faster pulsing in flight, slower when searching
+            val pulseSpeed = if (meshState is MeshState.InFlight) 1800 else 3000
+            SonarPulse(
+                modifier = Modifier.fillMaxSize(),
+                color = SignalSosEmber,
+                ringCount = 3,
+                durationMillis = pulseSpeed
+            )
+
+            // Inner circle displaying current hops count or search symbol
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape)
+                    .background(SurfaceNearBlack)
+                    .border(2.dp, SignalSosEmber, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                if (meshState is MeshState.Searching) {
+                    Text(
+                        text = "📡",
+                        style = MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp)
+                    )
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "HOP",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MutedGray
+                        )
+                        AnimatedContent(
+                            targetState = hopCount,
+                            transitionSpec = {
+                                slideInVertically { height -> height } + fadeIn() togetherWith
+                                slideOutVertically { height -> -height } + fadeOut()
+                            },
+                            label = "hopCountAnimation"
+                        ) { count ->
+                            Text(
+                                text = count.toString(),
+                                style = MaterialTheme.typography.labelLarge.copy(fontSize = 36.sp),
+                                color = SignalSosEmber,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Detailed Topology Path representation
         Card(
             colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
             shape = MaterialTheme.shapes.large,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
-                .padding(vertical = 24.dp)
+                .padding(vertical = 12.dp)
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "MESH HOP ROUTING PATH",
+                    text = "ACTIVE ROUTE PATH",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MutedGray
+                    color = MutedGray,
+                    letterSpacing = 1.sp
                 )
 
-                // Simple Visual Path representation
-                topology.activeHopPath.forEachIndexed { index, nodeId ->
-                    val node = topology.nodes.find { it.id == nodeId }
-                    if (node != null) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
+                // Simple path elements
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    topology.activeHopPath.forEachIndexed { idx, nodeId ->
+                        val node = topology.nodes.find { it.id == nodeId }
+                        if (node != null) {
                             Box(
                                 modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(if (node.isVictim) SignalSosEmber else if (node.isGateway) SignalSafeTeal else MutedGray),
-                                contentAlignment = Alignment.Center
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .background(if (node.isVictim) SignalSosEmber else if (node.isGateway) SignalSafeTeal else CanvasNearBlack)
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (node.isVictim) SignalSosEmber else if (node.isGateway) SignalSafeTeal else MutedGray.copy(alpha = 0.3f),
+                                        shape = MaterialTheme.shapes.medium
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 6.dp)
                             ) {
                                 Text(
-                                    text = (index + 1).toString(),
+                                    text = node.label.split(" ").first(),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = CanvasNearBlack
+                                    color = if (node.isVictim || node.isGateway) CanvasNearBlack else OnSurfaceOffWhite,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
-                            Text(
-                                text = node.label,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = OnSurfaceOffWhite
-                            )
-                        }
-                        
-                        if (index < topology.activeHopPath.size - 1) {
-                            Box(
-                                modifier = Modifier
-                                    .padding(start = 13.dp)
-                                    .width(2.dp)
-                                    .height(20.dp)
-                                    .background(MutedGray)
-                            )
+
+                            if (idx < topology.activeHopPath.size - 1) {
+                                Text(
+                                    text = "➔",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MutedGray
+                                )
+                            }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
+                HorizontalDivider(color = CanvasNearBlack, thickness = 1.dp)
 
-                // Stats row
+                // Realtime connection statistics
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
-                        Text("PEERS NEARBY", style = MaterialTheme.typography.labelSmall, color = MutedGray)
                         Text(
-                            text = when (val s = meshState) {
-                                is MeshState.Searching -> s.peers.toString()
-                                is MeshState.InFlight -> s.peers.toString()
-                                else -> "0"
-                            },
-                            style = MaterialTheme.typography.labelLarge.copy(fontSize = 18.sp),
-                            color = SignalSafeTeal
+                            text = "PEERS COVERED",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MutedGray
+                        )
+                        Text(
+                            text = String.format("%02d", peerCount),
+                            style = MaterialTheme.typography.labelLarge.copy(fontSize = 16.sp),
+                            color = OnSurfaceOffWhite
                         )
                     }
-                    Column {
-                        Text("HOPS ELAPSED", style = MaterialTheme.typography.labelSmall, color = MutedGray)
+                    Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = when (val s = meshState) {
-                                is MeshState.InFlight -> s.hops.toString()
-                                else -> "0"
-                            },
-                            style = MaterialTheme.typography.labelLarge.copy(fontSize = 18.sp),
-                            color = SignalSafeTeal
+                            text = "MAPPED HOPS",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MutedGray
+                        )
+                        Text(
+                            text = String.format("%02d", hopCount),
+                            style = MaterialTheme.typography.labelLarge.copy(fontSize = 16.sp),
+                            color = OnSurfaceOffWhite
                         )
                     }
                 }
             }
         }
+
+        // Redirect links
+        Text(
+            text = "VIEW DETAILED TOPOLOGY GRAPH",
+            style = MaterialTheme.typography.labelMedium,
+            color = MutedGray,
+            letterSpacing = 2.sp,
+            modifier = Modifier
+                .clickable {
+                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    onNavigate(MeshView)
+                }
+                .padding(8.dp)
+        )
 
         DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Status", onReset = { controller.reset() })
     }
