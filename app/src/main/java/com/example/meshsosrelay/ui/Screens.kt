@@ -1,8 +1,14 @@
 package com.example.meshsosrelay.ui
 
+import android.view.HapticFeedbackConstants
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,7 +18,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.center
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -22,6 +35,7 @@ import com.example.meshsosrelay.*
 import com.example.meshsosrelay.contract.*
 import com.example.meshsosrelay.theme.*
 import com.example.meshsosrelay.ui.fake.FakeSosController
+import kotlinx.coroutines.launch
 
 @Composable
 fun DebugNavigationFooter(
@@ -92,6 +106,64 @@ fun DebugNavigationFooter(
 }
 
 @Composable
+fun AmbientNetworkBackground(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "ambient")
+    val radiusMultiplier by infiniteTransition.animateFloat(
+        initialValue = 0.96f,
+        targetValue = 1.04f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 8000, easing = EaseInOutSine),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "radiusScale"
+    )
+    val rotationAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 90000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotation"
+    )
+
+    Canvas(modifier = modifier.fillMaxSize()) {
+        val center = size.center
+        val maxDim = size.maxDimension
+        
+        rotate(rotationAngle, center) {
+            val lineSpacing = 48.dp.toPx()
+            val gridColor = MutedGray.copy(alpha = 0.04f)
+            
+            // Concentric circles
+            for (i in 1..8) {
+                drawCircle(
+                    color = gridColor,
+                    radius = (i * lineSpacing) * radiusMultiplier,
+                    center = center,
+                    style = Stroke(width = 1.dp.toPx())
+                )
+            }
+            
+            // Radial network rays
+            val rayCount = 8
+            for (i in 0 until rayCount) {
+                val angle = (360f / rayCount) * i
+                val angleRad = Math.toRadians(angle.toDouble())
+                val endX = center.x + (maxDim * Math.cos(angleRad)).toFloat()
+                val endY = center.y + (maxDim * Math.sin(angleRad)).toFloat()
+                drawLine(
+                    color = gridColor,
+                    start = center,
+                    end = Offset(endX, endY),
+                    strokeWidth = 1.dp.toPx()
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun HomeScreen(
     controller: FakeSosController,
     onNavigate: (NavKey) -> Unit,
@@ -99,110 +171,201 @@ fun HomeScreen(
 ) {
     val meshState by controller.meshState.collectAsState()
     val deliveryState by controller.deliveryState.collectAsState()
+    val scope = rememberCoroutineScope()
+    val view = LocalView.current
+    
+    val peerCount = when (val state = meshState) {
+        is MeshState.Searching -> state.peers
+        is MeshState.InFlight -> state.peers
+        is MeshState.Delivered -> 3
+        else -> 0
+    }
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(CanvasNearBlack)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // App Header
+        // Ambient network lines
+        AmbientNetworkBackground()
+
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(top = 24.dp)
-        ) {
-            Text(
-                text = "MESH SOS RELAY",
-                style = MaterialTheme.typography.labelMedium,
-                color = SignalSafeTeal,
-                letterSpacing = 3.sp
-            )
-            Text(
-                text = "Offline Peer-to-Peer Signal",
-                style = MaterialTheme.typography.bodySmall,
-                color = MutedGray
-            )
-        }
-
-        // SOS Central Button
-        Box(
             modifier = Modifier
-                .size(280.dp),
-            contentAlignment = Alignment.Center
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Sonar pulse rings always active for subtle idle motion
-            SonarPulse(
-                modifier = Modifier.fillMaxSize(),
-                color = SignalSosEmber,
-                ringCount = 3,
-                durationMillis = 3000
-            )
-
-            // Outer button boundary
-            Box(
-                modifier = Modifier
-                    .size(160.dp)
-                    .clip(CircleShape)
-                    .background(SignalSosEmber)
-                    .clickable {
-                        controller.trigger(SosDraft("critical", "Emergency manual SOS trigger"))
-                        onNavigate(Sending)
-                    },
-                contentAlignment = Alignment.Center
+            // App Header
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(top = 24.dp)
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "MESH SOS RELAY",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = SignalSafeTeal,
+                    letterSpacing = 4.sp
+                )
+                Text(
+                    text = "OFFLINE EMERGENCY NETWORK",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MutedGray,
+                    letterSpacing = 1.5.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            // Animated Status Line in Teal (Mesh Health)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .clip(MaterialTheme.shapes.large)
+                    .background(SurfaceNearBlack)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(if (peerCount > 0) SignalSafeTeal else SignalSosEmber)
+                )
+                if (peerCount > 0) {
                     Text(
-                        text = "SOS",
-                        style = MaterialTheme.typography.headlineLarge.copy(fontSize = 36.sp),
-                        color = CanvasNearBlack,
-                        fontWeight = FontWeight.Bold
+                        text = "Mesh active · ",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = OnSurfaceOffWhite
                     )
+                    AnimatedContent(
+                        targetState = peerCount,
+                        transitionSpec = {
+                            slideInVertically { height -> height } + fadeIn() togetherWith
+                            slideOutVertically { height -> -height } + fadeOut()
+                        },
+                        label = "peerCountAnimation"
+                    ) { targetCount ->
+                        Text(
+                            text = String.format("%02d", targetCount),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = SignalSafeTeal,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                     Text(
-                        text = "TAP TO SEND",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = CanvasNearBlack.copy(alpha = 0.8f)
+                        text = " peers nearby",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = OnSurfaceOffWhite
+                    )
+                } else {
+                    Text(
+                        text = "Searching for peers...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MutedGray
                     )
                 }
             }
-        }
 
-        // Status Panel
-        Card(
-            colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
-            shape = MaterialTheme.shapes.large,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Central breathing SOS action button
+            Box(
+                modifier = Modifier.size(300.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Column {
+                // Sonar pulse rings breathing every 3s
+                SonarPulse(
+                    modifier = Modifier.fillMaxSize(),
+                    color = SignalSosEmber,
+                    ringCount = 3,
+                    durationMillis = 3000
+                )
+
+                // Stiff spring button scaling
+                val scale = remember { Animatable(1f) }
+
+
+                Box(
+                    modifier = Modifier
+                        .size(160.dp)
+                        .scale(scale.value)
+                        .clip(CircleShape)
+                        .background(SignalSosEmber)
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onPress = {
+                                    scope.launch {
+                                        scale.animateTo(0.85f, animationSpec = MotionTokens.StiffSpring)
+                                    }
+                                    tryAwaitRelease()
+                                    scope.launch {
+                                        scale.animateTo(1f, animationSpec = MotionTokens.SoftSpring)
+                                    }
+                                },
+                                onTap = {
+                                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                    controller.trigger(SosDraft("critical", "Emergency manual SOS trigger from HomeScreen"))
+                                    onNavigate(Sending)
+                                }
+                            )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "SOS",
+                            style = MaterialTheme.typography.headlineLarge.copy(fontSize = 38.sp),
+                            color = CanvasNearBlack,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "TAP & HOLD",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = CanvasNearBlack.copy(alpha = 0.8f),
+                            letterSpacing = 1.sp
+                        )
+                    }
+                }
+            }
+
+            // Secondary controls: I'm safe & Relayed alerts link
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                        controller.reset()
+                    },
+                    border = BorderStroke(1.dp, MutedGray.copy(alpha = 0.3f)),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = OnSurfaceOffWhite),
+                    modifier = Modifier.height(48.dp)
+                ) {
                     Text(
-                        text = "SYSTEM STATE",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MutedGray
-                    )
-                    Text(
-                        text = "Ready to broadcast",
-                        style = MaterialTheme.typography.bodyLarge,
+                        text = "I'M SAFE",
+                        style = MaterialTheme.typography.labelLarge,
+                        letterSpacing = 2.sp,
                         color = OnSurfaceOffWhite
                     )
                 }
-                Box(
+
+                Text(
+                    text = "VIEW RELAYED ALERTS",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MutedGray,
+                    letterSpacing = 2.sp,
                     modifier = Modifier
-                        .size(12.dp)
-                        .clip(CircleShape)
-                        .background(SignalSafeTeal)
+                        .clickable {
+                            view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                            onNavigate(ReceivedAlerts)
+                        }
+                        .padding(8.dp)
                 )
             }
-        }
 
-        DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Home", onReset = { controller.reset() })
+            DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Home", onReset = { controller.reset() })
+        }
     }
 }
 
