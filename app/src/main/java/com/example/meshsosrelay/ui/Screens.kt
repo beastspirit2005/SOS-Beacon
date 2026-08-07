@@ -24,7 +24,9 @@ import androidx.compose.ui.geometry.center
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -1245,7 +1247,61 @@ fun MeshViewScreen(
     onNavigate: (NavKey) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // =========================================================================
+    // SEAM FOR SYSTEMS TEAM:
+    // This topology flow is driven by the controller interface flow.
+    // When the real systems core is ready, this state flow can be replaced by the
+    // systems team's Flow<MeshTopology> without requiring any layout changes.
+    // =========================================================================
     val topology by controller.meshTopology.collectAsState()
+    val meshState by controller.meshState.collectAsState()
+    val view = LocalView.current
+
+    val peerCount = when (val s = meshState) {
+        is MeshState.Searching -> s.peers
+        is MeshState.InFlight -> s.peers
+        else -> 3
+    }
+
+    val hopCount = when (val s = meshState) {
+        is MeshState.InFlight -> s.hops
+        else -> 2
+    }
+
+    val isGatewayOnline = topology.nodes.any { it.isGateway }
+
+    // Animations for idle pulse dots, dash line phase, and packet pulse progress
+    val infiniteTransition = rememberInfiniteTransition(label = "meshAnimations")
+    
+    val nodePingProgress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = EaseOutSine),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "nodePing"
+    )
+
+    val dashPhase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 60f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "dashPhase"
+    )
+
+    val packetProgress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "packetProgress"
+    )
 
     Column(
         modifier = modifier
@@ -1254,79 +1310,247 @@ fun MeshViewScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        // Screen Header
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(top = 24.dp)
+        ) {
             Text(
-                text = "MESH TOPOLOGY STATUS",
+                text = "MESH TOPOLOGY GRAPH",
                 style = MaterialTheme.typography.labelLarge,
                 color = SignalSafeTeal,
-                letterSpacing = 2.sp,
-                modifier = Modifier.padding(top = 24.dp, bottom = 16.dp)
+                letterSpacing = 4.sp
             )
+            Text(
+                text = "Live peer-to-peer route map",
+                style = MaterialTheme.typography.labelSmall,
+                color = MutedGray,
+                letterSpacing = 1.5.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
 
-            // Nodes listing
-            Card(
-                colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
-                shape = MaterialTheme.shapes.large,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "ACTIVE NODES",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MutedGray
-                    )
-                    topology.nodes.forEach { node ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(if (node.isVictim) SignalSosEmber else if (node.isGateway) SignalSafeTeal else MutedGray)
-                            )
-                            Text(
-                                text = "${node.label} (${node.id})",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = OnSurfaceOffWhite
-                            )
-                        }
+        // Live high-tech HUD summary bar (monospace numerals)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .background(SurfaceNearBlack)
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(text = "PEERS", style = MaterialTheme.typography.labelSmall, color = MutedGray)
+                Text(
+                    text = String.format("%02d", peerCount),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = OnSurfaceOffWhite
+                )
+            }
+            Column {
+                Text(text = "HOPS", style = MaterialTheme.typography.labelSmall, color = MutedGray)
+                Text(
+                    text = String.format("%02d", hopCount),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = OnSurfaceOffWhite
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(text = "GATEWAY", style = MaterialTheme.typography.labelSmall, color = MutedGray)
+                Text(
+                    text = if (isGatewayOnline) "ONLINE" else "STANDBY",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (isGatewayOnline) SignalSafeTeal else SignalSosEmber,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // Living interactive topology map inside BoxWithConstraints
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(vertical = 12.dp)
+                .clip(MaterialTheme.shapes.large)
+                .background(SurfaceNearBlack)
+                .border(1.dp, MutedGray.copy(alpha = 0.15f), MaterialTheme.shapes.large)
+        ) {
+            val density = LocalDensity.current
+            val widthPx = constraints.maxWidth.toFloat()
+            val heightPx = constraints.maxHeight.toFloat()
+
+            // Dynamic coordinate translator helper
+            fun getNodePosition(id: String): Offset {
+                val relative = when (id) {
+                    "victim" -> Offset(0.18f, 0.50f)
+                    "peer_b" -> Offset(0.42f, 0.30f)
+                    "peer_c" -> Offset(0.62f, 0.70f)
+                    "gateway" -> Offset(0.85f, 0.50f)
+                    else -> {
+                        val hash = id.hashCode()
+                        val rx = 0.25f + 0.5f * (Math.abs(hash % 100) / 100f)
+                        val ry = 0.20f + 0.6f * (Math.abs((hash / 100) % 100) / 100f)
+                        Offset(rx, ry)
                     }
                 }
+                return Offset(relative.x * widthPx, relative.y * heightPx)
             }
 
-            // Edges listing
-            Card(
-                colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
-                shape = MaterialTheme.shapes.large,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "TOPOLOGY EDGES (CONNECTIONS)",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MutedGray
+            // Canvas drawing layer
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                // 1. Draw inactive topology background connections (flowing dashed lines)
+                topology.edges.forEach { edge ->
+                    val fromPos = getNodePosition(edge.fromNodeId)
+                    val toPos = getNodePosition(edge.toNodeId)
+                    
+                    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 12f), dashPhase)
+                    drawLine(
+                        color = MutedGray.copy(alpha = 0.15f),
+                        start = fromPos,
+                        end = toPos,
+                        strokeWidth = 1.5.dp.toPx(),
+                        pathEffect = dashEffect
                     )
-                    if (topology.edges.isEmpty()) {
-                        Text(
-                            text = "No connections active. Searching for peers...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MutedGray
+                }
+
+                // 2. Draw active packet propagation segments along hop path
+                val hopPath = topology.activeHopPath
+                if (hopPath.size >= 2) {
+                    val numSegments = hopPath.size - 1
+                    val segmentProgress = packetProgress * numSegments
+                    val currentSegmentIdx = segmentProgress.toInt().coerceIn(0, numSegments - 1)
+                    val t = segmentProgress - currentSegmentIdx
+
+                    // Draw already-completed segments in solid ember
+                    for (j in 0 until currentSegmentIdx) {
+                        val fromPos = getNodePosition(hopPath[j])
+                        val toPos = getNodePosition(hopPath[j + 1])
+                        drawLine(
+                            color = SignalSosEmber,
+                            start = fromPos,
+                            end = toPos,
+                            strokeWidth = 2.5.dp.toPx()
                         )
-                    } else {
-                        topology.edges.forEach { edge ->
-                            Text(
-                                text = "Link: ${edge.fromNodeId} ⟷ ${edge.toNodeId}",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = OnSurfaceOffWhite
-                            )
-                        }
                     }
+
+                    // Draw active segment partially lit up in solid ember
+                    val activeFromPos = getNodePosition(hopPath[currentSegmentIdx])
+                    val activeToPos = getNodePosition(hopPath[currentSegmentIdx + 1])
+                    val packetPos = Offset(
+                        x = activeFromPos.x + (activeToPos.x - activeFromPos.x) * t,
+                        y = activeFromPos.y + (activeToPos.y - activeFromPos.y) * t
+                    )
+
+                    drawLine(
+                        color = SignalSosEmber,
+                        start = activeFromPos,
+                        end = packetPos,
+                        strokeWidth = 2.5.dp.toPx()
+                    )
+
+                    // Draw the bright glowing packet traveling along route
+                    drawCircle(
+                        color = SignalSosEmber,
+                        radius = 8.dp.toPx(),
+                        center = packetPos
+                    )
+                    drawCircle(
+                        color = SignalSosEmber.copy(alpha = 0.3f),
+                        radius = 18.dp.toPx(),
+                        center = packetPos
+                    )
+                }
+
+                // 3. Draw sonar pulses expanding around each node
+                topology.nodes.forEach { node ->
+                    val pos = getNodePosition(node.id)
+                    val nodeColor = when {
+                        node.isVictim -> SignalSosEmber
+                        node.isGateway -> SignalSafeTeal
+                        else -> OnSurfaceOffWhite
+                    }
+
+                    // expanding outer ring
+                    val ringRadius = 26.dp.toPx() * nodePingProgress
+                    val ringAlpha = (1f - nodePingProgress) * 0.3f
+                    drawCircle(
+                        color = nodeColor.copy(alpha = ringAlpha),
+                        radius = 6.dp.toPx() + ringRadius,
+                        center = pos,
+                        style = Stroke(width = 1.5.dp.toPx())
+                    )
+
+                    // solid core circle
+                    drawCircle(
+                        color = nodeColor,
+                        radius = 6.dp.toPx(),
+                        center = pos
+                    )
+                    drawCircle(
+                        color = nodeColor.copy(alpha = 0.2f),
+                        radius = 12.dp.toPx(),
+                        center = pos
+                    )
                 }
             }
+
+            // HTML-styled absolute overlay text labels for nodes
+            topology.nodes.forEach { node ->
+                val pos = getNodePosition(node.id)
+                val isVictim = node.isVictim
+                val isGateway = node.isGateway
+                
+                val labelWidth = 100.dp
+                val densityVal = density.density
+                
+                Box(
+                    modifier = Modifier
+                        .offset(
+                            x = (pos.x / densityVal - 50).dp,
+                            y = (pos.y / densityVal + 14).dp
+                        )
+                        .width(labelWidth)
+                        .clip(MaterialTheme.shapes.small)
+                        .background(SurfaceNearBlack.copy(alpha = 0.8f))
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = node.label.split(" ").first(),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        color = when {
+                            isVictim -> SignalSosEmber
+                            isGateway -> SignalSafeTeal
+                            else -> MutedGray
+                        },
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Done button to navigate back
+        Button(
+            onClick = {
+                view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                onNavigate(Home)
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = SurfaceNearBlack),
+            border = BorderStroke(1.dp, MutedGray.copy(alpha = 0.3f)),
+            shape = MaterialTheme.shapes.extraLarge,
+            modifier = Modifier
+                .height(48.dp)
+                .fillMaxWidth(0.5f)
+                .align(Alignment.CenterHorizontally)
+        ) {
+            Text(
+                text = "DISMISS MAP",
+                style = MaterialTheme.typography.labelLarge,
+                color = OnSurfaceOffWhite,
+                letterSpacing = 1.5.sp
+            )
         }
 
         DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Mesh", onReset = { controller.reset() })
