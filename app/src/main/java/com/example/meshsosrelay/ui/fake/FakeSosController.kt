@@ -102,7 +102,7 @@ class FakeSosController : SosController {
             )
             println("FakeSosController: State: Pending | Mesh: Searching(2)")
 
-            delay(1500)
+            delay(5000)
 
             // Phase 2: InFlight (1 hop)
             _meshState.value = MeshState.InFlight(peers = 2, hops = 1)

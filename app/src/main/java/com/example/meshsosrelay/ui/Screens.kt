@@ -36,6 +36,7 @@ import com.example.meshsosrelay.contract.*
 import com.example.meshsosrelay.theme.*
 import com.example.meshsosrelay.ui.fake.FakeSosController
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 @Composable
 fun DebugNavigationFooter(
@@ -370,6 +371,49 @@ fun HomeScreen(
 }
 
 @Composable
+fun AcceleratingSonarPulse(
+    modifier: Modifier = Modifier,
+    color: Color = SignalSosEmber,
+    remainingMillis: Int,
+    ringCount: Int = 3
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val animFactor by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = LinearEasing)
+        ),
+        label = "pulseAnim"
+    )
+
+    val timeMs = System.currentTimeMillis()
+    val ratio = (remainingMillis / 5000f).coerceIn(0f, 1f)
+    val duration = (800 + (1600 * ratio)).toLong()
+
+    Canvas(modifier = modifier) {
+        val center = size.center
+        val maxRadius = size.minDimension / 2
+        
+        for (i in 0 until ringCount) {
+            val offsetTime = timeMs - (i * (duration / ringCount))
+            val rawProgress = (offsetTime % duration) / duration.toFloat()
+            val progress = rawProgress.coerceIn(0f, 1f)
+            
+            val currentRadius = maxRadius * progress
+            val alpha = (1f - progress) * 0.4f
+            
+            drawCircle(
+                color = color,
+                radius = currentRadius,
+                alpha = alpha,
+                style = Stroke(width = 2.dp.toPx())
+            )
+        }
+    }
+}
+
+@Composable
 fun SendingScreen(
     controller: FakeSosController,
     onNavigate: (NavKey) -> Unit,
@@ -377,11 +421,32 @@ fun SendingScreen(
 ) {
     val deliveryState by controller.deliveryState.collectAsState()
     val meshState by controller.meshState.collectAsState()
+    val view = LocalView.current
 
-    // Automatically navigate as states progress in fake timeline
-    LaunchedEffect(deliveryState, meshState) {
-        if (meshState is MeshState.InFlight) {
-            onNavigate(Status)
+    var remainingMillis by remember { mutableStateOf(5000) }
+
+    LaunchedEffect(Unit) {
+        var lastTick = 5
+        val startTime = System.currentTimeMillis()
+        while (remainingMillis > 0) {
+            val elapsed = System.currentTimeMillis() - startTime
+            val remaining = (5000 - elapsed).coerceAtLeast(0).toInt()
+            remainingMillis = remaining
+            
+            val currentSecond = (remaining + 999) / 1000
+            if (currentSecond < lastTick && currentSecond >= 1) {
+                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                lastTick = currentSecond
+            }
+            
+            delay(16)
+        }
+        onNavigate(Status)
+    }
+
+    LaunchedEffect(deliveryState) {
+        if (deliveryState is DeliveryState.Notified) {
+            onNavigate(Delivered)
         }
     }
 
@@ -393,69 +458,89 @@ fun SendingScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = "CANCEL WINDOW",
-            style = MaterialTheme.typography.labelLarge,
-            color = SignalSosEmber,
-            letterSpacing = 2.sp,
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(top = 24.dp)
-        )
-
-        // Pulsing countdown/cancel button
-        Box(
-            modifier = Modifier.size(240.dp),
-            contentAlignment = Alignment.Center
         ) {
-            SonarPulse(
-                modifier = Modifier.fillMaxSize(),
+            Text(
+                text = "SENDING SOS",
+                style = MaterialTheme.typography.labelLarge,
                 color = SignalSosEmber,
-                ringCount = 3,
-                durationMillis = 1800
+                letterSpacing = 4.sp
             )
-
-            Box(
-                modifier = Modifier
-                    .size(140.dp)
-                    .clip(CircleShape)
-                    .background(SurfaceNearBlack)
-                    .border(2.dp, SignalSosEmber, CircleShape)
-                    .clickable {
-                        controller.reset()
-                        onNavigate(Home)
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "CANCEL",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = SignalSosEmber,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Sending in 5s...",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MutedGray
-                    )
-                }
-            }
+            Text(
+                text = "BROADCAST STAGING",
+                style = MaterialTheme.typography.labelSmall,
+                color = MutedGray,
+                letterSpacing = 1.5.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
         }
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
-            shape = MaterialTheme.shapes.large,
+        Box(
+            modifier = Modifier.size(260.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            AcceleratingSonarPulse(
+                modifier = Modifier.fillMaxSize(),
+                color = SignalSosEmber,
+                remainingMillis = remainingMillis,
+                ringCount = 3
+            )
+
+            Canvas(modifier = Modifier.size(180.dp)) {
+                drawCircle(
+                    color = SignalSosEmber.copy(alpha = 0.05f),
+                    style = Stroke(width = 8.dp.toPx())
+                )
+                
+                drawArc(
+                    color = SignalSosEmber,
+                    startAngle = -90f,
+                    sweepAngle = 360f * (remainingMillis / 5000f),
+                    useCenter = false,
+                    style = Stroke(width = 8.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                )
+            }
+
+            val secondsLeft = (remainingMillis + 999) / 1000
+            Text(
+                text = secondsLeft.toString(),
+                style = MaterialTheme.typography.labelLarge.copy(fontSize = 72.sp),
+                color = OnSurfaceOffWhite,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "Emergency alert will broadcast automatically unless cancelled.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MutedGray,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 24.dp)
+            )
+
+            OutlinedButton(
+                onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                    controller.reset()
+                    onNavigate(Home)
+                },
+                border = BorderStroke(1.dp, SignalSosEmber.copy(alpha = 0.5f)),
+                shape = MaterialTheme.shapes.extraLarge,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = SignalSosEmber),
+                modifier = Modifier.height(54.dp).width(200.dp)
+            ) {
                 Text(
-                    text = "PACKET STAGING",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MutedGray
-                )
-                Text(
-                    text = "Compiling GPS location and computing signature...",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = OnSurfaceOffWhite
+                    text = "CANCEL",
+                    style = MaterialTheme.typography.labelLarge,
+                    letterSpacing = 2.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
