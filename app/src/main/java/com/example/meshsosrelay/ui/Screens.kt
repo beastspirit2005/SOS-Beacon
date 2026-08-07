@@ -983,6 +983,19 @@ fun ReceivedAlertsScreen(
     modifier: Modifier = Modifier
 ) {
     val alerts by controller.receivedAlerts.collectAsState()
+    val view = LocalView.current
+
+    // Pulsing dot animation for active relay status
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val dotAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = EaseInOutSine),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
 
     Column(
         modifier = modifier
@@ -992,68 +1005,229 @@ fun ReceivedAlertsScreen(
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "INCOMING RELAY ALERTS",
-                style = MaterialTheme.typography.labelLarge,
-                color = SignalSafeTeal,
-                letterSpacing = 2.sp,
-                modifier = Modifier.padding(top = 24.dp, bottom = 16.dp)
-            )
-
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth()
+            // Header Row: Count & Controls
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 24.dp, bottom = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                items(alerts) { alert ->
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
-                        shape = MaterialTheme.shapes.large,
-                        modifier = Modifier.fillMaxWidth()
+                Column {
+                    Text(
+                        text = "RELAY NETWORK",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = SignalSafeTeal,
+                        letterSpacing = 1.5.sp
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "DEVICE: ${alert.origin_id}",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = OnSurfaceOffWhite
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .clip(MaterialTheme.shapes.small)
-                                        .background(if (alert.severity == "critical") SignalSosEmber else SignalSafeTeal)
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Text(
-                                        text = alert.severity.uppercase(),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = CanvasNearBlack,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                        Text(
+                            text = "You're carrying",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = OnSurfaceOffWhite
+                        )
+                        AnimatedContent(
+                            targetState = alerts.size,
+                            transitionSpec = {
+                                slideInVertically { height -> height } + fadeIn() togetherWith
+                                slideOutVertically { height -> -height } + fadeOut()
+                            },
+                            label = "alertsCount"
+                        ) { count ->
+                            Text(
+                                text = String.format("%02d", count),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (count > 0) SignalSosEmber else SignalSafeTeal,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Text(
+                            text = "alerts",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = OnSurfaceOffWhite
+                        )
+                    }
+                }
+
+                // Inline Feed Toggle controls for hackathon presentation
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = if (alerts.isNotEmpty()) "CLEAR" else "POPULATE",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MutedGray,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .border(1.dp, MutedGray.copy(alpha = 0.3f), MaterialTheme.shapes.small)
+                            .clickable {
+                                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                                if (alerts.isNotEmpty()) {
+                                    controller.clearReceivedAlerts()
+                                } else {
+                                    controller.populateReceivedAlerts()
                                 }
                             }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            if (alerts.isEmpty()) {
+                // Standby Empty State
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 48.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier.size(160.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Slow ambient search pulse
+                        SonarPulse(
+                            modifier = Modifier.fillMaxSize(),
+                            color = SignalSafeTeal,
+                            ringCount = 2,
+                            durationMillis = 6000
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(70.dp)
+                                .clip(CircleShape)
+                                .background(SurfaceNearBlack)
+                                .border(1.dp, SignalSafeTeal.copy(alpha = 0.5f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Text(
-                                text = alert.payload,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MutedGray
+                                text = "🛰",
+                                style = MaterialTheme.typography.headlineLarge.copy(fontSize = 24.sp)
                             )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "No alerts nearby",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = OnSurfaceOffWhite,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Your phone is on standby, ready to relay offline signals.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MutedGray,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(start = 32.dp, top = 8.dp, end = 32.dp)
+                    )
+                }
+            } else {
+                // Relayed alerts list
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(alerts) { alert ->
+                        val severityColor = when (alert.severity) {
+                            "critical" -> SignalSosEmber
+                            "warning", "warn" -> Color(0xFFFFB703) // Amber
+                            else -> SignalSafeTeal
+                        }
+
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
+                            shape = MaterialTheme.shapes.large,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Text(
-                                    text = "GPS: ${alert.lat}, ${alert.lon}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MutedGray
-                                )
-                                Text(
-                                    text = "HOPS: ${alert.hops}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MutedGray
-                                )
+                                // Header: Severity Badge + Location
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Severity Badge
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(MaterialTheme.shapes.small)
+                                            .background(severityColor)
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = alert.severity.uppercase(),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = CanvasNearBlack,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+
+                                    // Coarse Location (approx coordinates) - never precise details
+                                    val approxLat = Math.round(alert.lat * 1000.0) / 1000.0
+                                    val approxLon = Math.round(alert.lon * 1000.0) / 1000.0
+                                    Text(
+                                        text = String.format("GPS: %.3f°, %.3f°", approxLat, approxLon),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MutedGray
+                                    )
+                                }
+
+                                // Secondary Info: Device ID Hash, Hops, Time Elapsed
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = "SOURCE ROUTE",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MutedGray
+                                        )
+                                        Text(
+                                            text = alert.origin_id,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = OnSurfaceOffWhite
+                                        )
+                                    }
+
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        val timeDiff = (System.currentTimeMillis() - alert.created_at) / 1000
+                                        val timeText = if (timeDiff < 60) "Just now" else "${timeDiff / 60}m ago"
+                                        
+                                        Text(
+                                            text = "HOPS: ${alert.hops} · RECEIVED: $timeText",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MutedGray
+                                        )
+                                    }
+                                }
+
+                                HorizontalDivider(color = CanvasNearBlack, thickness = 1.dp)
+
+                                // Active Relaying status dot
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(SignalSafeTeal.copy(alpha = dotAlpha))
+                                    )
+                                    Text(
+                                        text = "ACTIVELY RELAYING SIGNAL",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = SignalSafeTeal,
+                                        letterSpacing = 1.sp
+                                    )
+                                }
                             }
                         }
                     }

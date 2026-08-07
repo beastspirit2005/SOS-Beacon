@@ -165,4 +165,60 @@ class FakeSosController : SosController {
         )
         println("FakeSosController: Reset to Idle")
     }
+
+    fun clearReceivedAlerts() {
+        _receivedAlerts.value = emptyList()
+        println("FakeSosController: Received alerts cleared")
+    }
+
+    fun populateReceivedAlerts() {
+        _receivedAlerts.value = listOf(
+            SosPacket(
+                msg_id = UUID.randomUUID().toString(),
+                origin_id = "device_alpha",
+                created_at = System.currentTimeMillis() - 600000,
+                lat = 12.9716,
+                lon = 77.5946,
+                acc = 10.0f,
+                severity = "critical",
+                confidence = 0.9f,
+                trigger_type = "fall",
+                ttl = 4,
+                hops = 2,
+                payload = "Severe impact detected. Stillness timeout. Request assistance.",
+                sig = "fake_sig_1"
+            ),
+            SosPacket(
+                msg_id = UUID.randomUUID().toString(),
+                origin_id = "device_beta",
+                created_at = System.currentTimeMillis() - 300000,
+                lat = 12.9722,
+                lon = 77.5950,
+                acc = 15.0f,
+                severity = "warn",
+                confidence = 0.7f,
+                trigger_type = "manual",
+                payload = "Sprained ankle on trail. Slowly moving towards base camp.",
+                ttl = 5,
+                hops = 1,
+                sig = "fake_sig_2"
+            ),
+            SosPacket(
+                msg_id = UUID.randomUUID().toString(),
+                origin_id = "device_gamma",
+                created_at = System.currentTimeMillis() - 50000,
+                lat = 12.9705,
+                lon = 77.5930,
+                acc = 8.0f,
+                severity = "info",
+                confidence = 0.5f,
+                trigger_type = "manual",
+                payload = "All clear. Arrived at base camp. Relaying status.",
+                ttl = 6,
+                hops = 0,
+                sig = "fake_sig_3"
+            )
+        )
+        println("FakeSosController: Received alerts populated")
+    }
 }
