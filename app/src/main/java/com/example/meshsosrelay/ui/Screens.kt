@@ -83,8 +83,8 @@ fun SosController.populateReceivedAlerts() {
     (this as? FakeSosController)?.populateReceivedAlerts()
 }
 
-// Set to false for clean release/demo builds (fully hides debug menu and controls)
-const val IS_DEBUG_MENU_ENABLED = false
+// Automatically determined by build variant type (true in debug, false in release/demo builds)
+val IS_DEBUG_MENU_ENABLED = com.example.meshsosrelay.BuildConfig.DEBUG
 
 @Composable
 fun DebugNavigationFooter(
