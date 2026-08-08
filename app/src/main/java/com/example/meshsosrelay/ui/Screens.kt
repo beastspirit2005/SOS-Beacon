@@ -34,6 +34,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation3.runtime.NavKey
 import com.example.meshsosrelay.*
 import com.example.meshsosrelay.contract.*
@@ -82,12 +83,17 @@ fun SosController.populateReceivedAlerts() {
     (this as? FakeSosController)?.populateReceivedAlerts()
 }
 
+// Set to false for clean release/demo builds (fully hides debug menu and controls)
+const val IS_DEBUG_MENU_ENABLED = false
+
 @Composable
 fun DebugNavigationFooter(
     onNavigate: (NavKey) -> Unit,
     currentRoute: String,
     onReset: (() -> Unit)? = null
 ) {
+    if (!IS_DEBUG_MENU_ENABLED) return
+
     Card(
         colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
         shape = MaterialTheme.shapes.medium,
@@ -127,9 +133,11 @@ fun DebugNavigationFooter(
                     ) {
                         Text(
                             text = label,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                             color = if (currentRoute == label) CanvasNearBlack else OnSurfaceOffWhite,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -228,14 +236,59 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val meshState by controller.meshState.collectAsState()
-    val deliveryState by controller.deliveryState.collectAsState()
     val volunteerMode by controller.volunteerMode.collectAsState()
+    val deviceRole by controller.deviceRole.collectAsState()
+    val soundOn by controller.soundEnabled.collectAsState()
+
+    var permissionGranted by remember { mutableStateOf(false) }
+
+    HomeScreenContent(
+        meshState = meshState,
+        volunteerMode = volunteerMode,
+        deviceRole = deviceRole,
+        soundOn = soundOn,
+        permissionGranted = permissionGranted,
+        onPermissionGranted = { permissionGranted = true },
+        onCycleDeviceRole = { controller.cycleDeviceRole() },
+        onToggleSound = { controller.soundEnabled.value = !soundOn },
+        onTriggerSos = { controller.trigger(SosDraft("critical", "Emergency manual SOS trigger from HomeScreen")) },
+        onReset = { controller.reset() },
+        onResetAll = {
+            controller.reset()
+            permissionGranted = false
+        },
+        onVolunteerModeChange = { isChecked ->
+            controller.volunteerMode.value = isChecked
+            if (isChecked) {
+                controller.deviceRole.value = "relay"
+            } else {
+                controller.deviceRole.value = "observer"
+            }
+        },
+        onNavigate = onNavigate,
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun HomeScreenContent(
+    meshState: MeshState,
+    volunteerMode: Boolean,
+    deviceRole: String,
+    soundOn: Boolean,
+    permissionGranted: Boolean,
+    onPermissionGranted: () -> Unit,
+    onCycleDeviceRole: () -> Unit,
+    onToggleSound: () -> Unit,
+    onTriggerSos: () -> Unit,
+    onReset: () -> Unit,
+    onResetAll: () -> Unit,
+    onVolunteerModeChange: (Boolean) -> Unit,
+    onNavigate: (NavKey) -> Unit,
+    modifier: Modifier = Modifier
+) {
     val scope = rememberCoroutineScope()
     val view = LocalView.current
-    val isReducedMotion = isReducedMotionEnabled()
-
-    // 4. Custom Mock Permission Request Screen - avoids system dialog dump!
-    var permissionGranted by remember { mutableStateOf(false) }
 
     val peerCount = when (val state = meshState) {
         is MeshState.Searching -> state.peers
@@ -301,7 +354,7 @@ fun HomeScreen(
                 Button(
                     onClick = {
                         view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                        permissionGranted = true
+                        onPermissionGranted()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = SignalSosEmber),
                     shape = MaterialTheme.shapes.extraLarge,
@@ -335,8 +388,6 @@ fun HomeScreen(
                         .padding(top = 24.dp)
                 ) {
                     // Live Mesh Role Chip (calm, ambient indicator)
-                    // Clickable to cycle through roles in fake/debug mode to verify layout!
-                    val deviceRole by controller.deviceRole.collectAsState()
                     val roleLabel = when (deviceRole) {
                         "victim" -> "Victim Mode"
                         "relay" -> "Relaying"
@@ -369,7 +420,7 @@ fun HomeScreen(
                             .border(1.dp, roleColor.copy(alpha = if (deviceRole == "relay") rolePulseAlpha else 0.3f), MaterialTheme.shapes.small)
                             .clickable {
                                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                                controller.cycleDeviceRole()
+                                onCycleDeviceRole()
                             }
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -409,11 +460,10 @@ fun HomeScreen(
                     }
 
                     // 2. Sound Toggle (Muted by default)
-                    val soundOn by controller.soundEnabled.collectAsState()
                     IconButton(
                         onClick = {
                             view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                            controller.soundEnabled.value = !soundOn
+                            onToggleSound()
                         },
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
@@ -552,7 +602,7 @@ fun HomeScreen(
                                         },
                                         onTap = {
                                             view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                                            controller.trigger(SosDraft("critical", "Emergency manual SOS trigger from HomeScreen"))
+                                            onTriggerSos()
                                             onNavigate(Sending)
                                         }
                                     )
@@ -587,7 +637,7 @@ fun HomeScreen(
                     OutlinedButton(
                         onClick = {
                             view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                            controller.reset()
+                            onReset()
                         },
                         border = BorderStroke(1.dp, MutedGray.copy(alpha = 0.3f)),
                         shape = MaterialTheme.shapes.extraLarge,
@@ -653,14 +703,7 @@ fun HomeScreen(
                                 checked = volunteerMode,
                                 onCheckedChange = { isChecked ->
                                     view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                                    controller.volunteerMode.value = isChecked
-                                    
-                                    // Update the device role to relay when volunteer mode is ON
-                                    if (isChecked) {
-                                        controller.deviceRole.value = "relay"
-                                    } else {
-                                        controller.deviceRole.value = "observer"
-                                    }
+                                    onVolunteerModeChange(isChecked)
                                 },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = CanvasNearBlack,
@@ -682,10 +725,7 @@ fun HomeScreen(
                 DebugNavigationFooter(
                     onNavigate = onNavigate,
                     currentRoute = "Home",
-                    onReset = {
-                        controller.reset()
-                        permissionGranted = false
-                    }
+                    onReset = onResetAll
                 )
             }
         }
@@ -742,7 +782,6 @@ fun SendingScreen(
     modifier: Modifier = Modifier
 ) {
     val deliveryState by controller.deliveryState.collectAsState()
-    val meshState by controller.meshState.collectAsState()
     val view = LocalView.current
 
     var remainingMillis by remember { mutableStateOf(5000) }
@@ -772,6 +811,26 @@ fun SendingScreen(
         }
     }
 
+    SendingScreenContent(
+        remainingMillis = remainingMillis,
+        onCancel = {
+            controller.reset()
+            onNavigate(Home)
+        },
+        onNavigate = onNavigate,
+        onReset = { controller.reset() },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun SendingScreenContent(
+    remainingMillis: Int,
+    onCancel: () -> Unit,
+    onNavigate: (NavKey) -> Unit,
+    onReset: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -848,11 +907,7 @@ fun SendingScreen(
             )
 
             OutlinedButton(
-                onClick = {
-                    view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                    controller.reset()
-                    onNavigate(Home)
-                },
+                onClick = onCancel,
                 border = BorderStroke(1.dp, SignalSosEmber.copy(alpha = 0.5f)),
                 shape = MaterialTheme.shapes.extraLarge,
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = SignalSosEmber),
@@ -867,7 +922,7 @@ fun SendingScreen(
             }
         }
 
-        DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Sending", onReset = { controller.reset() })
+        DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Sending", onReset = onReset)
     }
 }
 
@@ -889,6 +944,25 @@ fun StatusScreen(
             onNavigate(Delivered)
         }
     }
+
+    StatusScreenContent(
+        meshState = meshState,
+        topology = topology,
+        onNavigate = onNavigate,
+        onReset = { controller.reset() },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun StatusScreenContent(
+    meshState: MeshState,
+    topology: MeshTopology,
+    onNavigate: (NavKey) -> Unit,
+    onReset: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val view = LocalView.current
 
     val peerCount = when (val s = meshState) {
         is MeshState.Searching -> s.peers
@@ -1091,7 +1165,7 @@ fun StatusScreen(
                 .padding(8.dp)
         )
 
-        DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Status", onReset = { controller.reset() })
+        DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Status", onReset = onReset)
     }
 }
 
@@ -1101,8 +1175,24 @@ fun DeliveredScreen(
     onNavigate: (NavKey) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val view = LocalView.current
     val meshState by controller.meshState.collectAsState()
+
+    DeliveredScreenContent(
+        meshState = meshState,
+        onNavigate = onNavigate,
+        onReset = { controller.reset() },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun DeliveredScreenContent(
+    meshState: MeshState,
+    onNavigate: (NavKey) -> Unit,
+    onReset: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val view = LocalView.current
 
     val peerCount = when (val s = meshState) {
         is MeshState.Searching -> s.peers
@@ -1264,7 +1354,7 @@ fun DeliveredScreen(
             Button(
                 onClick = {
                     view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                    controller.reset()
+                    onReset()
                     onNavigate(Home)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = SignalSafeTeal),
@@ -1294,7 +1384,7 @@ fun DeliveredScreen(
             )
         }
 
-        DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Delivered", onReset = { controller.reset() })
+        DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Delivered", onReset = onReset)
     }
 }
 
@@ -1305,6 +1395,26 @@ fun ReceivedAlertsScreen(
     modifier: Modifier = Modifier
 ) {
     val alerts by controller.receivedAlerts.collectAsState()
+
+    ReceivedAlertsScreenContent(
+        alerts = alerts,
+        onClearAlerts = { controller.clearReceivedAlerts() },
+        onPopulateAlerts = { controller.populateReceivedAlerts() },
+        onNavigate = onNavigate,
+        onReset = { controller.reset() },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun ReceivedAlertsScreenContent(
+    alerts: List<SosPacket>,
+    onClearAlerts: () -> Unit,
+    onPopulateAlerts: () -> Unit,
+    onNavigate: (NavKey) -> Unit,
+    onReset: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val view = LocalView.current
 
     // Pulsing dot animation for active relay status
@@ -1386,9 +1496,9 @@ fun ReceivedAlertsScreen(
                             .clickable {
                                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                                 if (alerts.isNotEmpty()) {
-                                    controller.clearReceivedAlerts()
+                                    onClearAlerts()
                                 } else {
-                                    controller.populateReceivedAlerts()
+                                    onPopulateAlerts()
                                 }
                             }
                             .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -1447,18 +1557,19 @@ fun ReceivedAlertsScreen(
                     )
                 }
             } else {
-                // Legend Row
-                Row(
+                // Legend wrapping FlowRow - ensures L# items never wrap mid-item and align correctly
+                androidx.compose.foundation.layout.FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     listOf(5, 4, 3, 2, 1).forEach { level ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.wrapContentSize()
                         ) {
                             Box(
                                 modifier = Modifier
@@ -1469,14 +1580,8 @@ fun ReceivedAlertsScreen(
                             Text(
                                 text = "L$level ${getPriorityLabel(level)}",
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                color = MutedGray
-                            )
-                        }
-                        if (level > 1) {
-                            Text(
-                                text = "·",
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                color = MutedGray.copy(alpha = 0.5f)
+                                color = MutedGray,
+                                maxLines = 1
                             )
                         }
                     }
@@ -1492,12 +1597,6 @@ fun ReceivedAlertsScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     items(sortedAlerts) { alert ->
-                        // =========================================================================
-                        // SEAM FOR SYSTEMS TEAM:
-                        // This reads the priority field from the SosPacket contract.
-                        // When real packets are received by the mesh core, they will contain
-                        // the priority value (defaulting to 3 if from an older client version).
-                        // =========================================================================
                         val priorityColor = getPriorityColor(alert.priority)
                         val priorityLabel = getPriorityLabel(alert.priority)
 
@@ -1599,7 +1698,7 @@ fun ReceivedAlertsScreen(
             }
         }
 
-        DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Relays", onReset = { controller.reset() })
+        DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Relays", onReset = onReset)
     }
 }
 
@@ -1609,9 +1708,26 @@ fun MeshViewScreen(
     onNavigate: (NavKey) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Wired to the real Flow<MeshTopology> from the mesh layer
     val topology by controller.meshTopology.collectAsState()
     val meshState by controller.meshState.collectAsState()
+
+    MeshViewScreenContent(
+        topology = topology,
+        meshState = meshState,
+        onNavigate = onNavigate,
+        onReset = { controller.reset() },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun MeshViewScreenContent(
+    topology: MeshTopology,
+    meshState: MeshState,
+    onNavigate: (NavKey) -> Unit,
+    onReset: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val view = LocalView.current
 
     val peerCount = when (val s = meshState) {
@@ -1712,11 +1828,6 @@ fun MeshViewScreen(
                     color = OnSurfaceOffWhite
                 )
             }
-            // =========================================================================
-            // SEAM FOR SYSTEMS TEAM:
-            // This computes the highest priority of any active in-flight distress packet in the mesh.
-            // Replace with real network monitoring querying active packet stores.
-            // =========================================================================
             Column {
                 Text(text = "PRIORITY", style = MaterialTheme.typography.labelSmall, color = MutedGray)
                 val highestPriority = topology.nodes.maxOfOrNull { it.priority } ?: 3
@@ -1796,11 +1907,6 @@ fun MeshViewScreen(
                     val currentSegmentIdx = segmentProgress.toInt().coerceIn(0, numSegments - 1)
                     val t = segmentProgress - currentSegmentIdx
 
-                    // =========================================================================
-                    // SEAM FOR SYSTEMS TEAM:
-                    // Color the path and traveling packet circle based on the origin packet's priority.
-                    // In a live system, this should query the packet metadata in transit.
-                    // =========================================================================
                     val originNode = topology.nodes.find { it.id == hopPath.firstOrNull() }
                     val packetPriority = originNode?.priority ?: 3
                     val packetColor = getPriorityColor(packetPriority)
@@ -1936,6 +2042,153 @@ fun MeshViewScreen(
             )
         }
 
-        DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Mesh", onReset = { controller.reset() })
+        DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Mesh", onReset = onReset)
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000)
+@Composable
+fun HomeScreenPreview() {
+    MeshSosRelayTheme {
+        HomeScreenContent(
+            meshState = MeshState.Searching(peers = 2),
+            volunteerMode = false,
+            deviceRole = "observer",
+            soundOn = false,
+            permissionGranted = true,
+            onPermissionGranted = {},
+            onCycleDeviceRole = {},
+            onToggleSound = {},
+            onTriggerSos = {},
+            onReset = {},
+            onResetAll = {},
+            onVolunteerModeChange = {},
+            onNavigate = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000)
+@Composable
+fun SendingScreenPreview() {
+    MeshSosRelayTheme {
+        SendingScreenContent(
+            remainingMillis = 3500,
+            onCancel = {},
+            onNavigate = {},
+            onReset = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000)
+@Composable
+fun StatusScreenPreview() {
+    MeshSosRelayTheme {
+        StatusScreenContent(
+            meshState = MeshState.InFlight(peers = 3, hops = 2),
+            topology = MeshTopology(
+                nodes = listOf(
+                    TopoNode("victim", "My Device (Victim)", isVictim = true, nodeRole = "victim", priority = 3),
+                    TopoNode("peer_b", "Peer B", isRelay = true, nodeRole = "relay", priority = 4),
+                    TopoNode("peer_c", "Peer C", isRelay = true, nodeRole = "relay", priority = 5),
+                    TopoNode("gateway", "Gateway Phone", isGateway = true, nodeRole = "gateway", priority = 3)
+                ),
+                edges = listOf(
+                    TopoEdge("victim", "peer_b"),
+                    TopoEdge("peer_b", "peer_c"),
+                    TopoEdge("peer_c", "gateway")
+                ),
+                activeHopPath = listOf("victim", "peer_b", "peer_c")
+            ),
+            onNavigate = {},
+            onReset = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000)
+@Composable
+fun DeliveredScreenPreview() {
+    MeshSosRelayTheme {
+        DeliveredScreenContent(
+            meshState = MeshState.Delivered,
+            onNavigate = {},
+            onReset = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000)
+@Composable
+fun ReceivedAlertsScreenPreview() {
+    val alerts = listOf(
+        SosPacket(
+            msg_id = "1",
+            origin_id = "device_alpha",
+            created_at = System.currentTimeMillis() - 600000,
+            lat = 12.9716,
+            lon = 77.5946,
+            acc = 10.0f,
+            severity = "critical",
+            confidence = 0.9f,
+            trigger_type = "fall",
+            ttl = 4,
+            hops = 2,
+            payload = "Severe impact detected.",
+            sig = "fake_sig_1",
+            priority = 5
+        ),
+        SosPacket(
+            msg_id = "2",
+            origin_id = "device_beta",
+            created_at = System.currentTimeMillis() - 300000,
+            lat = 12.9722,
+            lon = 77.5950,
+            acc = 15.0f,
+            severity = "warn",
+            confidence = 0.7f,
+            trigger_type = "manual",
+            payload = "Sprained ankle on trail.",
+            ttl = 5,
+            hops = 1,
+            sig = "fake_sig_2",
+            priority = 4
+        )
+    )
+    MeshSosRelayTheme {
+        ReceivedAlertsScreenContent(
+            alerts = alerts,
+            onClearAlerts = {},
+            onPopulateAlerts = {},
+            onNavigate = {},
+            onReset = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000)
+@Composable
+fun MeshViewScreenPreview() {
+    MeshSosRelayTheme {
+        MeshViewScreenContent(
+            meshState = MeshState.InFlight(peers = 3, hops = 2),
+            topology = MeshTopology(
+                nodes = listOf(
+                    TopoNode("victim", "My Device (Victim)", isVictim = true, nodeRole = "victim", priority = 3),
+                    TopoNode("peer_b", "Peer B", isRelay = true, nodeRole = "relay", priority = 4),
+                    TopoNode("peer_c", "Peer C", isRelay = true, nodeRole = "relay", priority = 5),
+                    TopoNode("gateway", "Gateway Phone", isGateway = true, nodeRole = "gateway", priority = 3)
+                ),
+                edges = listOf(
+                    TopoEdge("victim", "peer_b"),
+                    TopoEdge("peer_b", "peer_c"),
+                    TopoEdge("peer_c", "gateway")
+                ),
+                activeHopPath = listOf("victim", "peer_b", "peer_c")
+            ),
+            onNavigate = {},
+            onReset = {}
+        )
     }
 }

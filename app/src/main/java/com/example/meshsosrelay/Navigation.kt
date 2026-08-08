@@ -36,49 +36,49 @@ fun MainNavigation() {
           HomeScreen(
             controller = controller,
             onNavigate = { navKey -> backStack.add(navKey) },
-            modifier = Modifier.safeDrawingPadding().padding(16.dp)
+            modifier = Modifier.padding(16.dp)
           )
         }
         entry<Home> {
           HomeScreen(
             controller = controller,
             onNavigate = { navKey -> backStack.add(navKey) },
-            modifier = Modifier.safeDrawingPadding().padding(16.dp)
+            modifier = Modifier.padding(16.dp)
           )
         }
         entry<Sending> {
           SendingScreen(
             controller = controller,
             onNavigate = { navKey -> backStack.add(navKey) },
-            modifier = Modifier.safeDrawingPadding().padding(16.dp)
+            modifier = Modifier.padding(16.dp)
           )
         }
         entry<Status> {
           StatusScreen(
             controller = controller,
             onNavigate = { navKey -> backStack.add(navKey) },
-            modifier = Modifier.safeDrawingPadding().padding(16.dp)
+            modifier = Modifier.padding(16.dp)
           )
         }
         entry<Delivered> {
           DeliveredScreen(
             controller = controller,
             onNavigate = { navKey -> backStack.add(navKey) },
-            modifier = Modifier.safeDrawingPadding().padding(16.dp)
+            modifier = Modifier.padding(16.dp)
           )
         }
         entry<ReceivedAlerts> {
           ReceivedAlertsScreen(
             controller = controller,
             onNavigate = { navKey -> backStack.add(navKey) },
-            modifier = Modifier.safeDrawingPadding().padding(16.dp)
+            modifier = Modifier.padding(16.dp)
           )
         }
         entry<MeshView> {
           MeshViewScreen(
             controller = controller,
             onNavigate = { navKey -> backStack.add(navKey) },
-            modifier = Modifier.safeDrawingPadding().padding(16.dp)
+            modifier = Modifier.padding(16.dp)
           )
         }
       },

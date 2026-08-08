@@ -13,6 +13,12 @@ import com.example.meshsosrelay.theme.MeshSosRelayTheme
 import com.example.meshsosrelay.ui.SplashScreen
 import kotlinx.coroutines.delay
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -20,17 +26,26 @@ class MainActivity : ComponentActivity() {
     enableEdgeToEdge()
     setContent {
       MeshSosRelayTheme {
-        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-          var showSplash by remember { mutableStateOf(true) }
-          LaunchedEffect(Unit) {
-            delay(1500)
-            showSplash = false
-          }
-          
-          if (showSplash) {
-            SplashScreen()
-          } else {
-            MainNavigation()
+        Scaffold(
+          contentWindowInsets = WindowInsets.safeDrawing,
+          containerColor = MaterialTheme.colorScheme.background
+        ) { innerPadding ->
+          Box(
+            modifier = Modifier
+              .fillMaxSize()
+              .padding(innerPadding)
+          ) {
+            var showSplash by remember { mutableStateOf(true) }
+            LaunchedEffect(Unit) {
+              delay(1500)
+              showSplash = false
+            }
+            
+            if (showSplash) {
+              SplashScreen()
+            } else {
+              MainNavigation()
+            }
           }
         }
       }
