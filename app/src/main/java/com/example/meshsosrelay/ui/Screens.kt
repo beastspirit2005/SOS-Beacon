@@ -189,6 +189,7 @@ fun HomeScreen(
 ) {
     val meshState by controller.meshState.collectAsState()
     val deliveryState by controller.deliveryState.collectAsState()
+    val volunteerMode by controller.volunteerMode.collectAsState()
     val scope = rememberCoroutineScope()
     val view = LocalView.current
     val isReducedMotion = isReducedMotionEnabled()
@@ -435,62 +436,104 @@ fun HomeScreen(
                     }
                 }
 
-                // Central breathing SOS action button
-                Box(
-                    modifier = Modifier.size(300.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // rings breathe every 3s (unless reduced motion is checked)
-                    SonarPulse(
-                        modifier = Modifier.fillMaxSize(),
-                        color = SignalSosEmber,
-                        ringCount = 3,
-                        durationMillis = 3000
-                    )
-
-                    // Stiff spring button scaling
-                    val scale = remember { Animatable(1f) }
-
+                // Central SOS trigger / Relaying state
+                if (volunteerMode) {
+                    // Volunteer Mode ON: Personal SOS is disabled, showing active relaying
                     Box(
-                        modifier = Modifier
-                            .size(160.dp)
-                            .scale(scale.value)
-                            .clip(CircleShape)
-                            .background(SignalSosEmber)
-                            .pointerInput(Unit) {
-                                detectTapGestures(
-                                    onPress = {
-                                        scope.launch {
-                                            scale.animateTo(0.85f, animationSpec = MotionTokens.StiffSpring)
-                                        }
-                                        tryAwaitRelease()
-                                        scope.launch {
-                                            scale.animateTo(1f, animationSpec = MotionTokens.SoftSpring)
-                                        }
-                                    },
-                                    onTap = {
-                                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                                        controller.trigger(SosDraft("critical", "Emergency manual SOS trigger from HomeScreen"))
-                                        onNavigate(Sending)
-                                    }
-                                )
-                            }
-                            .semantics { contentDescription = "Double tap to trigger emergency manual SOS broadcast" },
+                        modifier = Modifier.size(300.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "SOS",
-                                style = MaterialTheme.typography.headlineLarge.copy(fontSize = 38.sp),
-                                color = CanvasNearBlack,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "TAP & HOLD",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = CanvasNearBlack.copy(alpha = 0.8f),
-                                letterSpacing = 1.sp
-                            )
+                        // Slow, calm teal sonar pulse indicating background relaying
+                        SonarPulse(
+                            modifier = Modifier.fillMaxSize(),
+                            color = SignalSafeTeal,
+                            ringCount = 3,
+                            durationMillis = 4000
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .size(160.dp)
+                                .clip(CircleShape)
+                                .background(SurfaceNearBlack)
+                                .border(2.dp, SignalSafeTeal, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "RELAYING",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = SignalSafeTeal,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp
+                                )
+                                Text(
+                                    text = "ACTIVE",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = OnSurfaceOffWhite,
+                                    letterSpacing = 1.sp
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // Personal SOS Trigger
+                    Box(
+                        modifier = Modifier.size(300.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // rings breathe every 3s (unless reduced motion is checked)
+                        SonarPulse(
+                            modifier = Modifier.fillMaxSize(),
+                            color = SignalSosEmber,
+                            ringCount = 3,
+                            durationMillis = 3000
+                        )
+
+                        // Stiff spring button scaling
+                        val scale = remember { Animatable(1f) }
+
+                        Box(
+                            modifier = Modifier
+                                .size(160.dp)
+                                .scale(scale.value)
+                                .clip(CircleShape)
+                                .background(SignalSosEmber)
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onPress = {
+                                            scope.launch {
+                                                scale.animateTo(0.85f, animationSpec = MotionTokens.StiffSpring)
+                                            }
+                                            tryAwaitRelease()
+                                            scope.launch {
+                                                scale.animateTo(1f, animationSpec = MotionTokens.SoftSpring)
+                                            }
+                                        },
+                                        onTap = {
+                                            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                            controller.trigger(SosDraft("critical", "Emergency manual SOS trigger from HomeScreen"))
+                                            onNavigate(Sending)
+                                        }
+                                    )
+                                }
+                                .semantics { contentDescription = "Double tap to trigger emergency manual SOS broadcast" },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "SOS",
+                                    style = MaterialTheme.typography.headlineLarge.copy(fontSize = 38.sp),
+                                    color = CanvasNearBlack,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "TAP & HOLD",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = CanvasNearBlack.copy(alpha = 0.8f),
+                                    letterSpacing = 1.sp
+                                )
+                            }
                         }
                     }
                 }
@@ -534,6 +577,66 @@ fun HomeScreen(
                             .padding(8.dp)
                             .semantics { contentDescription = "Inspect offline relayed alerts feed" }
                     )
+                }
+
+                // Volunteer Mode Toggle Card
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "VOLUNTEER MODE",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = SignalSafeTeal,
+                                    letterSpacing = 1.sp
+                                )
+                                Text(
+                                    text = "Relay others' emergency signals nearby.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = OnSurfaceOffWhite
+                                )
+                            }
+                            Switch(
+                                checked = volunteerMode,
+                                onCheckedChange = { isChecked ->
+                                    view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                                    controller.volunteerMode.value = isChecked
+                                    
+                                    // Update the device role to relay when volunteer mode is ON
+                                    if (isChecked) {
+                                        controller.deviceRole.value = "relay"
+                                    } else {
+                                        controller.deviceRole.value = "observer"
+                                    }
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = CanvasNearBlack,
+                                    checkedTrackColor = SignalSafeTeal,
+                                    uncheckedThumbColor = MutedGray,
+                                    uncheckedTrackColor = SurfaceNearBlack
+                                )
+                            )
+                        }
+                        HorizontalDivider(color = CanvasNearBlack, thickness = 1.dp)
+                        Text(
+                            text = "🔒 No account or personal data is collected or shared to act as a relay.",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                            color = MutedGray
+                        )
+                    }
                 }
 
                 DebugNavigationFooter(
