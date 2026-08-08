@@ -287,12 +287,67 @@ fun HomeScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Header with settings toggle
+                // Header with settings toggle & live role chip
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 24.dp)
                 ) {
+                    // Live Mesh Role Chip (calm, ambient indicator)
+                    // Clickable to cycle through roles in fake/debug mode to verify layout!
+                    val deviceRole by controller.deviceRole.collectAsState()
+                    val roleLabel = when (deviceRole) {
+                        "victim" -> "Victim Mode"
+                        "relay" -> "Relaying"
+                        "gateway" -> "Gateway — online"
+                        else -> "Standby" // observer
+                    }
+                    val roleColor = when (deviceRole) {
+                        "victim" -> SignalSosEmber
+                        "gateway" -> SignalSafeTeal
+                        "relay" -> OnSurfaceOffWhite
+                        else -> MutedGray
+                    }
+
+                    val roleInfiniteTransition = rememberInfiniteTransition(label = "rolePulse")
+                    val rolePulseAlpha by roleInfiniteTransition.animateFloat(
+                        initialValue = 0.4f,
+                        targetValue = 1f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1500, easing = EaseInOutSine),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "rolePulseAlpha"
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .clip(MaterialTheme.shapes.small)
+                            .background(SurfaceNearBlack)
+                            .border(1.dp, roleColor.copy(alpha = if (deviceRole == "relay") rolePulseAlpha else 0.3f), MaterialTheme.shapes.small)
+                            .clickable {
+                                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                                controller.cycleDeviceRole()
+                            }
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(roleColor.copy(alpha = if (deviceRole == "relay") rolePulseAlpha else 1f))
+                        )
+                        Text(
+                            text = roleLabel.uppercase(),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+                            color = roleColor,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.align(Alignment.Center)

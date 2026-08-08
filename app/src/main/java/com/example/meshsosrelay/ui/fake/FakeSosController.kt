@@ -17,6 +17,15 @@ class FakeSosController : SosController {
     private val _meshState = MutableStateFlow<MeshState>(MeshState.Idle)
     override val meshState: StateFlow<MeshState> = _meshState
 
+    // =========================================================================
+    // SEAM FOR SYSTEMS TEAM (PENDING IMPLEMENTATION):
+    // The deviceRole represents the local device's active role in the mesh network.
+    // In the real implementation, this must be exposed dynamically by the mesh core
+    // (e.g., via MeshState or a separate StateFlow on SosController) rather than
+    // being a manually cycled value.
+    // =========================================================================
+    val deviceRole = MutableStateFlow("observer")
+
     val soundEnabled = MutableStateFlow(false)
     val volunteerMode = MutableStateFlow(false)
     private val _deliveryState = MutableStateFlow<DeliveryState>(DeliveryState.Idle)
@@ -228,5 +237,15 @@ class FakeSosController : SosController {
             )
         )
         println("FakeSosController: Received alerts populated")
+    }
+
+    fun cycleDeviceRole() {
+        deviceRole.value = when (deviceRole.value) {
+            "observer" -> "relay"
+            "relay" -> "gateway"
+            "gateway" -> "victim"
+            else -> "observer"
+        }
+        println("FakeSosController: Cycled device role to: ${deviceRole.value}")
     }
 }
