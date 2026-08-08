@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Literal
+from typing import Literal, Optional
 
 class SosPacket(BaseModel):
     msg_id: str = Field(..., description="uuid v4 — unique per SOS; DEDUP KEY")
@@ -9,7 +9,7 @@ class SosPacket(BaseModel):
     lon: float = Field(..., ge=-180.0, le=180.0)
     acc: float = Field(..., ge=0.0, description="gps accuracy (m)")
     severity: Literal["info", "warn", "critical"] = Field(..., description="info | warn | critical")
-    priority: int = Field(3, ge=1, le=5, description="1..5 (Packet Priority Engine; default 3)")
+    priority: Optional[int] = Field(3, ge=1, le=5, description="1..5 (Packet Priority Engine; default 3 if not sent by client)")
     confidence: float = Field(..., ge=0.0, le=1.0, description="0.0..1.0 (trigger confidence)")
     trigger_type: Literal["manual", "partial", "fall", "scream", "no_motion", "missed_checkin", "crash"] = Field(...)
     ttl: int = Field(..., ge=0, description="remaining hops; decremented each relay")

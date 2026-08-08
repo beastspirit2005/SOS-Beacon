@@ -19,6 +19,7 @@ class SosIncident(Base):
     
     ai_summary = Column(Text, nullable=True)
     escalation_tier = Column(String, nullable=True)
+    notified_at = Column(BigInteger, nullable=True)  # epoch ms when SMS fired; null until notified
     
     delivery_status = Column(String, default="pending") 
     received_at = Column(BigInteger, nullable=False) 

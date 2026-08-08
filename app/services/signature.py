@@ -9,7 +9,14 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-SECRET_KEY = os.getenv("SECRET_KEY", "beacon_hmac_secret_key_2026_iic3")
+# L-1 fix: raise at import-time if SECRET_KEY is missing — prevents silent use of the
+# public default key which any GitHub reader can forge HMAC signatures with.
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "[Beacon] SECRET_KEY environment variable is not set. "
+        "Add it to your .env file before starting the server."
+    )
 MAX_AGE_MS = 1000 * 60 * 60 * 24  # 24 hours
 CLOCK_DRIFT_TOLERANCE_MS = 1000 * 60 * 5  # 5 minutes future drift allowed
 

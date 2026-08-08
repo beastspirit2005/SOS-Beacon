@@ -3,7 +3,8 @@ from ....services.websocket_manager import manager
 
 router = APIRouter()
 
-@router.websocket("/ws/dashboard")
+# Contract §3.5: WS /dashboard (full path: /api/v1/dashboard)
+@router.websocket("/dashboard")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:

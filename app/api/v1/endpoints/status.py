@@ -16,7 +16,7 @@ def get_status(sos_id: str, db: Session = Depends(get_db)):
     return DeliveryStatus(
         sos_id=incident.sos_id,
         delivery=incident.delivery_status,
-        notified_at=incident.received_at, # Simplification for MVP
+        notified_at=incident.notified_at,  # null until SMS fires (H-4 fix)
         request_id=str(uuid.uuid4())
     )
 

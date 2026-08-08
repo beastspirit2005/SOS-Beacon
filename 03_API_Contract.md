@@ -35,8 +35,9 @@ SosPacket:
   lon:           float
   acc:           float    # gps accuracy (m)
   severity:      string   # "info" | "warn" | "critical"
+  priority:      int?     # 1..5 backend priority hint (optional; defaults to 3 if absent)
   confidence:    float    # 0.0..1.0 (trigger confidence)
-  trigger_type:  string   # "manual" | "partial" | "fall" | "scream" | "no_motion" | "missed_checkin"
+  trigger_type:  string   # "manual" | "partial" | "fall" | "scream" | "no_motion" | "missed_checkin" | "crash"
   ttl:           int      # remaining hops; decremented at each relay; drop at 0
   hops:          int      # hops so far; incremented at each relay
   payload:       string   # short message / partial text (<= 240 chars)

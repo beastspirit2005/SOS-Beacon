@@ -54,6 +54,9 @@ async def ingest_sos(
             content={"error": {"code": "MISSING_GATEWAY_ID", "message": "X-Gateway-Id header required", "request_id": req_id}}
         )
 
+    # M-5: log app version for tracing
+    logger.info(f"Ingest request from gateway={x_gateway_id} app_version={x_app_version or 'unknown'}")
+
     current_time = int(time.time() * 1000)
     packet = payload.packet
 
@@ -77,9 +80,17 @@ async def ingest_sos(
         )
 
     # --- Audit: Log gateway forwarding attempt ---
-    log = GatewayLog(msg_id=packet.msg_id, gateway_id=x_gateway_id, received_at=current_time)
-    db.add(log)
-    db.commit()
+    try:
+        log = GatewayLog(msg_id=packet.msg_id, gateway_id=x_gateway_id, received_at=current_time)
+        db.add(log)
+        db.commit()
+    except Exception as e:
+        logger.error(f"Failed to write gateway log: {e}")
+        db.rollback()
+        return JSONResponse(
+            status_code=500,
+            content={"error": {"code": "INTERNAL", "message": "Audit log write failed", "request_id": req_id}}
+        )
 
     # --- Guard: Idempotent deduplication on msg_id ---
     if is_duplicate(db, packet.msg_id):
@@ -98,7 +109,7 @@ async def ingest_sos(
     # --- Groq AI Enrichment (with safe fallback) ---
     summary, priority_tier, escalation = await enrich_incident(packet.payload, packet.severity, packet.priority)
 
-    # --- Persist Incident to Neon DB ---
+    # --- Persist Incident to Neon DB (C-3 fix: wrapped in try/except) ---
     sos_id = f"beacon-sos-{uuid.uuid4().hex[:8]}"
     incident = SosIncident(
         sos_id=sos_id,
@@ -117,13 +128,30 @@ async def ingest_sos(
         escalation_tier=escalation,
         received_at=current_time
     )
-    db.add(incident)
-    db.commit()
+    try:
+        db.add(incident)
+        db.commit()
+        db.refresh(incident)
+    except Exception as e:
+        logger.error(f"Failed to persist SosIncident: {e}")
+        db.rollback()
+        return JSONResponse(
+            status_code=500,
+            content={"error": {"code": "INTERNAL", "message": "Failed to store incident", "request_id": req_id}}
+        )
 
-    logger.info(f"Incident accepted: sos_id={sos_id}, priority={priority_tier}, escalation={escalation}")
+    logger.info(f"Incident persisted: sos_id={sos_id}, priority={priority_tier}, escalation={escalation}")
 
-    # --- Dispatch SMS ---
-    await send_sms_notification(packet.origin_id, summary, packet.lat, packet.lon, escalation)
+    # --- Dispatch SMS + stamp delivery status (H-1 fix) ---
+    sms_sent = await send_sms_notification(packet.origin_id, summary, packet.lat, packet.lon, escalation)
+    if sms_sent:
+        try:
+            incident.delivery_status = "notified"
+            incident.notified_at = int(time.time() * 1000)
+            db.commit()
+        except Exception as e:
+            logger.error(f"Failed to update delivery_status after SMS: {e}")
+            db.rollback()
 
     # --- Broadcast to WebSocket Dashboard ---
     await manager.broadcast_incident({

@@ -18,10 +18,13 @@ class ConnectionManager:
         if not self.active_connections:
             return
         message = json.dumps(incident_data)
-        for connection in self.active_connections:
+        dead: List[WebSocket] = []
+        for connection in list(self.active_connections):  # iterate a copy to allow mutation
             try:
                 await connection.send_text(message)
             except Exception:
-                pass
+                dead.append(connection)  # mark stale, don't remove mid-loop
+        for conn in dead:
+            self.disconnect(conn)  # prune all dead connections after broadcast
 
 manager = ConnectionManager()
