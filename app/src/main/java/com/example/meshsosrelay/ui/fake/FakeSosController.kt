@@ -18,6 +18,7 @@ class FakeSosController : SosController {
     override val meshState: StateFlow<MeshState> = _meshState
 
     val soundEnabled = MutableStateFlow(false)
+    val volunteerMode = MutableStateFlow(false)
     private val _deliveryState = MutableStateFlow<DeliveryState>(DeliveryState.Idle)
     override val deliveryState: StateFlow<DeliveryState> = _deliveryState
 
@@ -25,8 +26,8 @@ class FakeSosController : SosController {
     private val _meshTopology = MutableStateFlow(
         MeshTopology(
             nodes = listOf(
-                TopoNode("victim", "My Device (Victim)", isVictim = true),
-                TopoNode("peer_b", "Peer B", isRelay = true)
+                TopoNode("victim", "My Device (Victim)", isVictim = true, nodeRole = "victim", priority = 3),
+                TopoNode("peer_b", "Peer B", isRelay = true, nodeRole = "relay", priority = 4)
             ),
             edges = emptyList(),
             activeHopPath = emptyList()
@@ -50,7 +51,8 @@ class FakeSosController : SosController {
                 ttl = 4,
                 hops = 2,
                 payload = "Severe impact detected. Stillness timeout. Request assistance.",
-                sig = "fake_sig_1"
+                sig = "fake_sig_1",
+                priority = 5
             ),
             SosPacket(
                 msg_id = UUID.randomUUID().toString(),
@@ -65,7 +67,8 @@ class FakeSosController : SosController {
                 payload = "Sprained ankle on trail. Slowly moving towards base camp.",
                 ttl = 5,
                 hops = 1,
-                sig = "fake_sig_2"
+                sig = "fake_sig_2",
+                priority = 4
             ),
             SosPacket(
                 msg_id = UUID.randomUUID().toString(),
@@ -80,7 +83,8 @@ class FakeSosController : SosController {
                 payload = "All clear. Arrived at base camp. Relaying status.",
                 ttl = 6,
                 hops = 0,
-                sig = "fake_sig_3"
+                sig = "fake_sig_3",
+                priority = 3
             )
         )
     )
@@ -95,8 +99,8 @@ class FakeSosController : SosController {
             _meshState.value = MeshState.Searching(peers = 2)
             _meshTopology.value = MeshTopology(
                 nodes = listOf(
-                    TopoNode("victim", "My Device (Victim)", isVictim = true),
-                    TopoNode("peer_b", "Peer B (Relay)", isRelay = true)
+                    TopoNode("victim", "My Device (Victim)", isVictim = true, nodeRole = "victim", priority = 3),
+                    TopoNode("peer_b", "Peer B (Relay)", isRelay = true, nodeRole = "relay", priority = 4)
                 ),
                 edges = listOf(TopoEdge("victim", "peer_b")),
                 activeHopPath = listOf("victim")
@@ -109,9 +113,9 @@ class FakeSosController : SosController {
             _meshState.value = MeshState.InFlight(peers = 2, hops = 1)
             _meshTopology.value = MeshTopology(
                 nodes = listOf(
-                    TopoNode("victim", "My Device (Victim)", isVictim = true),
-                    TopoNode("peer_b", "Peer B (Relay)", isRelay = true),
-                    TopoNode("peer_c", "Peer C (Relay)", isRelay = true)
+                    TopoNode("victim", "My Device (Victim)", isVictim = true, nodeRole = "victim", priority = 3),
+                    TopoNode("peer_b", "Peer B (Relay)", isRelay = true, nodeRole = "relay", priority = 4),
+                    TopoNode("peer_c", "Peer C (Relay)", isRelay = true, nodeRole = "relay", priority = 5)
                 ),
                 edges = listOf(
                     TopoEdge("victim", "peer_b"),
@@ -127,10 +131,10 @@ class FakeSosController : SosController {
             _meshState.value = MeshState.InFlight(peers = 3, hops = 2)
             _meshTopology.value = MeshTopology(
                 nodes = listOf(
-                    TopoNode("victim", "My Device (Victim)", isVictim = true),
-                    TopoNode("peer_b", "Peer B (Relay)", isRelay = true),
-                    TopoNode("peer_c", "Peer C (Relay)", isRelay = true),
-                    TopoNode("gateway", "Gateway Phone", isGateway = true)
+                    TopoNode("victim", "My Device (Victim)", isVictim = true, nodeRole = "victim", priority = 3),
+                    TopoNode("peer_b", "Peer B (Relay)", isRelay = true, nodeRole = "relay", priority = 4),
+                    TopoNode("peer_c", "Peer C (Relay)", isRelay = true, nodeRole = "relay", priority = 5),
+                    TopoNode("gateway", "Gateway Phone", isGateway = true, nodeRole = "gateway", priority = 3)
                 ),
                 edges = listOf(
                     TopoEdge("victim", "peer_b"),
@@ -158,8 +162,8 @@ class FakeSosController : SosController {
         _meshState.value = MeshState.Idle
         _meshTopology.value = MeshTopology(
             nodes = listOf(
-                TopoNode("victim", "My Device (Victim)", isVictim = true),
-                TopoNode("peer_b", "Peer B", isRelay = true)
+                TopoNode("victim", "My Device (Victim)", isVictim = true, nodeRole = "victim", priority = 3),
+                TopoNode("peer_b", "Peer B", isRelay = true, nodeRole = "relay", priority = 4)
             ),
             edges = emptyList(),
             activeHopPath = emptyList()
@@ -187,7 +191,8 @@ class FakeSosController : SosController {
                 ttl = 4,
                 hops = 2,
                 payload = "Severe impact detected. Stillness timeout. Request assistance.",
-                sig = "fake_sig_1"
+                sig = "fake_sig_1",
+                priority = 5
             ),
             SosPacket(
                 msg_id = UUID.randomUUID().toString(),
@@ -202,7 +207,8 @@ class FakeSosController : SosController {
                 payload = "Sprained ankle on trail. Slowly moving towards base camp.",
                 ttl = 5,
                 hops = 1,
-                sig = "fake_sig_2"
+                sig = "fake_sig_2",
+                priority = 4
             ),
             SosPacket(
                 msg_id = UUID.randomUUID().toString(),
@@ -217,7 +223,8 @@ class FakeSosController : SosController {
                 payload = "All clear. Arrived at base camp. Relaying status.",
                 ttl = 6,
                 hops = 0,
-                sig = "fake_sig_3"
+                sig = "fake_sig_3",
+                priority = 3
             )
         )
         println("FakeSosController: Received alerts populated")
