@@ -54,10 +54,10 @@ fun SplashScreen() {
                 color = OnSurfaceOffWhite
             )
             Text(
-                text = "Offline P2P Emergency Link",
+                text = "Emergency signal — even with no network.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MutedGray,
-                letterSpacing = 1.sp
+                letterSpacing = 0.5.sp
             )
         }
     }

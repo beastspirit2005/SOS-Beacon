@@ -248,7 +248,7 @@ fun HomeScreen(
                 )
 
                 Text(
-                    text = "Mesh SOS operates completely offline by creating local radio bridges with nearby devices. We require location permissions to discover active peer frequencies.",
+                    text = "Beacon operates completely offline by creating local radio bridges with nearby devices. We require location permissions to discover active peer frequencies.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MutedGray,
                     textAlign = TextAlign.Center,
@@ -298,7 +298,7 @@ fun HomeScreen(
                         modifier = Modifier.align(Alignment.Center)
                     ) {
                         Text(
-                            text = "MESH SOS RELAY",
+                            text = "BEACON",
                             style = MaterialTheme.typography.labelMedium,
                             color = SignalSafeTeal,
                             letterSpacing = 4.sp
