@@ -45,13 +45,29 @@ class MeshSosController : SosController {
 
     val deviceRole = MutableStateFlow("observer")
 
+    private fun logInfo(tag: String, msg: String) {
+        try {
+            Log.i(tag, msg)
+        } catch (e: Exception) {
+            println("$tag: $msg")
+        }
+    }
+
+    private fun logDebug(tag: String, msg: String) {
+        try {
+            Log.d(tag, msg)
+        } catch (e: Exception) {
+            println("$tag: $msg")
+        }
+    }
+
     init {
         // Startup log line to prove the real MeshSosController is live
-        Log.i("DI_STARTUP", "Injected SosController: ${this::class.java.name}")
+        logInfo("DI_STARTUP", "Injected SosController: ${this::class.java.name}")
     }
 
     override fun trigger(draft: SosDraft) {
-        Log.i("MeshSosController", "Triggering SOS via mesh core with draft payload: ${draft.payload}")
+        logInfo("MeshSosController", "Triggering SOS via mesh core with draft payload: ${draft.payload}")
         // Simulate real mesh transmission progression
         _meshState.value = MeshState.Searching(1)
         _deliveryState.value = DeliveryState.Pending
@@ -67,12 +83,12 @@ class MeshSosController : SosController {
             "gateway" -> "victim"
             else -> "observer"
         }
-        Log.d("MeshSosController", "Cycled real controller device role to: ${deviceRole.value}")
+        logDebug("MeshSosController", "Cycled real controller device role to: ${deviceRole.value}")
     }
 
     fun reset() {
         _meshState.value = MeshState.Idle
         _deliveryState.value = DeliveryState.Idle
-        Log.d("MeshSosController", "Reset real controller mesh and delivery state")
+        logDebug("MeshSosController", "Reset real controller mesh and delivery state")
     }
 }
