@@ -1249,17 +1249,59 @@ fun ReceivedAlertsScreen(
                     )
                 }
             } else {
-                // Relayed alerts list
+                // Legend Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    listOf(5, 4, 3, 2, 1).forEach { level ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(getPriorityColor(level))
+                            )
+                            Text(
+                                text = "L$level ${getPriorityLabel(level)}",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                color = MutedGray
+                            )
+                        }
+                        if (level > 1) {
+                            Text(
+                                text = "·",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                color = MutedGray.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                }
+
+                // Relayed alerts list sorted by highest-priority first
+                val sortedAlerts = remember(alerts) {
+                    alerts.sortedByDescending { it.priority }
+                }
+
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(alerts) { alert ->
-                        val severityColor = when (alert.severity) {
-                            "critical" -> SignalSosEmber
-                            "warning", "warn" -> Color(0xFFFFB703) // Amber
-                            else -> SignalSafeTeal
-                        }
+                    items(sortedAlerts) { alert ->
+                        // =========================================================================
+                        // SEAM FOR SYSTEMS TEAM:
+                        // This reads the priority field from the SosPacket contract.
+                        // When real packets are received by the mesh core, they will contain
+                        // the priority value (defaulting to 3 if from an older client version).
+                        // =========================================================================
+                        val priorityColor = getPriorityColor(alert.priority)
+                        val priorityLabel = getPriorityLabel(alert.priority)
 
                         Card(
                             colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
@@ -1270,21 +1312,21 @@ fun ReceivedAlertsScreen(
                                 modifier = Modifier.padding(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                // Header: Severity Badge + Location
+                                // Header: Priority Badge + Location
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // Severity Badge
+                                    // Priority Badge
                                     Box(
                                         modifier = Modifier
                                             .clip(MaterialTheme.shapes.small)
-                                            .background(severityColor)
+                                            .background(priorityColor)
                                             .padding(horizontal = 8.dp, vertical = 4.dp)
                                     ) {
                                         Text(
-                                            text = alert.severity.uppercase(),
+                                            text = "L${alert.priority} · ${priorityLabel.uppercase()}",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = CanvasNearBlack,
                                             fontWeight = FontWeight.Bold
@@ -1477,6 +1519,23 @@ fun MeshViewScreen(
                     color = OnSurfaceOffWhite
                 )
             }
+            // =========================================================================
+            // SEAM FOR SYSTEMS TEAM:
+            // This computes the highest priority of any active in-flight distress packet in the mesh.
+            // Replace with real network monitoring querying active packet stores.
+            // =========================================================================
+            Column {
+                Text(text = "PRIORITY", style = MaterialTheme.typography.labelSmall, color = MutedGray)
+                val highestPriority = topology.nodes.maxOfOrNull { it.priority } ?: 3
+                val pColor = getPriorityColor(highestPriority)
+                val pLabel = getPriorityLabel(highestPriority)
+                Text(
+                    text = "L$highestPriority · ${pLabel.uppercase()}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = pColor,
+                    fontWeight = FontWeight.Bold
+                )
+            }
             Column(horizontalAlignment = Alignment.End) {
                 Text(text = "GATEWAY", style = MaterialTheme.typography.labelSmall, color = MutedGray)
                 Text(
@@ -1544,19 +1603,28 @@ fun MeshViewScreen(
                     val currentSegmentIdx = segmentProgress.toInt().coerceIn(0, numSegments - 1)
                     val t = segmentProgress - currentSegmentIdx
 
-                    // Draw already-completed segments in solid ember
+                    // =========================================================================
+                    // SEAM FOR SYSTEMS TEAM:
+                    // Color the path and traveling packet circle based on the origin packet's priority.
+                    // In a live system, this should query the packet metadata in transit.
+                    // =========================================================================
+                    val originNode = topology.nodes.find { it.id == hopPath.firstOrNull() }
+                    val packetPriority = originNode?.priority ?: 3
+                    val packetColor = getPriorityColor(packetPriority)
+
+                    // Draw already-completed segments in solid priority color
                     for (j in 0 until currentSegmentIdx) {
                         val fromPos = getNodePosition(hopPath[j])
                         val toPos = getNodePosition(hopPath[j + 1])
                         drawLine(
-                            color = SignalSosEmber,
+                            color = packetColor,
                             start = fromPos,
                             end = toPos,
                             strokeWidth = 2.5.dp.toPx()
                         )
                     }
 
-                    // Draw active segment partially lit up in solid ember
+                    // Draw active segment partially lit up in solid priority color
                     val activeFromPos = getNodePosition(hopPath[currentSegmentIdx])
                     val activeToPos = getNodePosition(hopPath[currentSegmentIdx + 1])
                     val packetPos = Offset(
@@ -1565,7 +1633,7 @@ fun MeshViewScreen(
                     )
 
                     drawLine(
-                        color = SignalSosEmber,
+                        color = packetColor,
                         start = activeFromPos,
                         end = packetPos,
                         strokeWidth = 2.5.dp.toPx()
@@ -1573,12 +1641,12 @@ fun MeshViewScreen(
 
                     // Draw the bright glowing packet traveling along route
                     drawCircle(
-                        color = SignalSosEmber,
+                        color = packetColor,
                         radius = 8.dp.toPx(),
                         center = packetPos
                     )
                     drawCircle(
-                        color = SignalSosEmber.copy(alpha = 0.3f),
+                        color = packetColor.copy(alpha = 0.3f),
                         radius = 18.dp.toPx(),
                         center = packetPos
                     )
@@ -1588,7 +1656,7 @@ fun MeshViewScreen(
                 topology.nodes.forEach { node ->
                     val pos = getNodePosition(node.id)
                     val nodeColor = when {
-                        node.isVictim -> SignalSosEmber
+                        node.isVictim -> getPriorityColor(node.priority)
                         node.isGateway -> SignalSafeTeal
                         else -> OnSurfaceOffWhite
                     }
@@ -1642,7 +1710,7 @@ fun MeshViewScreen(
                         text = node.label.split(" ").first(),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         color = when {
-                            isVictim -> SignalSosEmber
+                            isVictim -> getPriorityColor(node.priority)
                             isGateway -> SignalSafeTeal
                             else -> MutedGray
                         },
