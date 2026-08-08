@@ -1,3 +1,4 @@
+# Python Backend
 .env
 __pycache__/
 *.pyc
@@ -6,3 +7,24 @@ __pycache__/
 *.sqlite3
 venv/
 .venv/
+*.log
+
+# Android (from frontend team)
+.gradle/
+build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+*.aab
+*.apk
+output-metadata.json
+*.iml
+.idea/
+misc.xml
+deploymentTargetDropDown.xml
+render.experimental.xml
+*.jks
+*.keystore
+google-services.json
+*.hprof
