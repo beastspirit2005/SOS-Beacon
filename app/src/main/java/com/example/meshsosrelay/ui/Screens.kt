@@ -45,6 +45,43 @@ import com.example.meshsosrelay.ui.fake.FakeSosController
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
+// Extension properties and methods to support fake/debug fields on the seam interface
+val SosController.volunteerMode: kotlinx.coroutines.flow.MutableStateFlow<Boolean>
+    get() = (this as? FakeSosController)?.volunteerMode ?: kotlinx.coroutines.flow.MutableStateFlow(false)
+
+val SosController.deviceRole: kotlinx.coroutines.flow.MutableStateFlow<String>
+    get() = (this as? FakeSosController)?.deviceRole ?: (this as? com.example.meshsosrelay.mesh.MeshSosController)?.deviceRole ?: kotlinx.coroutines.flow.MutableStateFlow("observer")
+
+val SosController.soundEnabled: kotlinx.coroutines.flow.MutableStateFlow<Boolean>
+    get() = (this as? FakeSosController)?.soundEnabled ?: kotlinx.coroutines.flow.MutableStateFlow(false)
+
+val SosController.meshTopology: kotlinx.coroutines.flow.StateFlow<MeshTopology>
+    get() = (this as? FakeSosController)?.meshTopology 
+        ?: (this as? com.example.meshsosrelay.mesh.MeshSosController)?.meshTopology 
+        ?: kotlinx.coroutines.flow.MutableStateFlow(MeshTopology(emptyList(), emptyList(), emptyList()))
+
+val SosController.receivedAlerts: kotlinx.coroutines.flow.StateFlow<List<SosPacket>>
+    get() = (this as? FakeSosController)?.receivedAlerts 
+        ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())
+
+fun SosController.cycleDeviceRole() {
+    (this as? FakeSosController)?.cycleDeviceRole()
+    (this as? com.example.meshsosrelay.mesh.MeshSosController)?.cycleDeviceRole()
+}
+
+fun SosController.reset() {
+    (this as? FakeSosController)?.reset()
+    (this as? com.example.meshsosrelay.mesh.MeshSosController)?.reset()
+}
+
+fun SosController.clearReceivedAlerts() {
+    (this as? FakeSosController)?.clearReceivedAlerts()
+}
+
+fun SosController.populateReceivedAlerts() {
+    (this as? FakeSosController)?.populateReceivedAlerts()
+}
+
 @Composable
 fun DebugNavigationFooter(
     onNavigate: (NavKey) -> Unit,
@@ -186,7 +223,7 @@ fun AmbientNetworkBackground(modifier: Modifier = Modifier) {
 
 @Composable
 fun HomeScreen(
-    controller: FakeSosController,
+    controller: SosController,
     onNavigate: (NavKey) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -700,7 +737,7 @@ fun AcceleratingSonarPulse(
 
 @Composable
 fun SendingScreen(
-    controller: FakeSosController,
+    controller: SosController,
     onNavigate: (NavKey) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -836,7 +873,7 @@ fun SendingScreen(
 
 @Composable
 fun StatusScreen(
-    controller: FakeSosController,
+    controller: SosController,
     onNavigate: (NavKey) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1060,7 +1097,7 @@ fun StatusScreen(
 
 @Composable
 fun DeliveredScreen(
-    controller: FakeSosController,
+    controller: SosController,
     onNavigate: (NavKey) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1263,7 +1300,7 @@ fun DeliveredScreen(
 
 @Composable
 fun ReceivedAlertsScreen(
-    controller: FakeSosController,
+    controller: SosController,
     onNavigate: (NavKey) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1568,16 +1605,11 @@ fun ReceivedAlertsScreen(
 
 @Composable
 fun MeshViewScreen(
-    controller: FakeSosController,
+    controller: SosController,
     onNavigate: (NavKey) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // =========================================================================
-    // SEAM FOR SYSTEMS TEAM:
-    // This topology flow is driven by the controller interface flow.
-    // When the real systems core is ready, this state flow can be replaced by the
-    // systems team's Flow<MeshTopology> without requiring any layout changes.
-    // =========================================================================
+    // Wired to the real Flow<MeshTopology> from the mesh layer
     val topology by controller.meshTopology.collectAsState()
     val meshState by controller.meshState.collectAsState()
     val view = LocalView.current

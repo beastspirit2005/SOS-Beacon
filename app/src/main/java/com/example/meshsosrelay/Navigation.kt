@@ -4,7 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -19,8 +19,9 @@ import com.example.meshsosrelay.theme.MotionTokens
 fun MainNavigation() {
   // Start stack at Home route
   val backStack = rememberNavBackStack(Home)
-  val viewModel: FakeSosViewModel = viewModel()
-  val controller = viewModel.controller
+  
+  // Runtime Injection: Providing the real MeshSosController instead of FakeSosController
+  val controller = remember { com.example.meshsosrelay.mesh.MeshSosController() }
 
   NavDisplay(
     backStack = backStack,
