@@ -1,5 +1,7 @@
 package com.example.meshsosrelay
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
@@ -11,6 +13,7 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.example.meshsosrelay.ui.fake.FakeSosViewModel
 import com.example.meshsosrelay.ui.*
+import com.example.meshsosrelay.theme.MotionTokens
 
 @Composable
 fun MainNavigation() {
@@ -22,6 +25,10 @@ fun MainNavigation() {
   NavDisplay(
     backStack = backStack,
     onBack = { backStack.removeLastOrNull() },
+    transitionSpec = {
+      fadeIn(animationSpec = tween(500)) + scaleIn(initialScale = 0.85f, animationSpec = MotionTokens.SoftSpring) togetherWith
+      fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 1.15f, animationSpec = tween(300))
+    },
     entryProvider =
       entryProvider {
         entry<Main> {

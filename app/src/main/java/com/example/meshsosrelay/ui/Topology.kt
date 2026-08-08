@@ -9,7 +9,9 @@ data class TopoNode(
     val label: String,
     val isVictim: Boolean = false,
     val isRelay: Boolean = false,
-    val isGateway: Boolean = false
+    val isGateway: Boolean = false,
+    val nodeRole: String = if (isVictim) "victim" else if (isGateway) "gateway" else "relay",
+    val priority: Int = 3
 )
 
 data class TopoEdge(

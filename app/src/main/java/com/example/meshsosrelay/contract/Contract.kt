@@ -19,11 +19,12 @@ data class SosPacket(
     val acc: Float,
     val severity: String,
     val confidence: Float,
-    val trigger_type: String,
+    val trigger_type: String, // "manual" | "fall" | "scream" | "crash"
     val ttl: Int,
     val hops: Int,
     val payload: String,
-    val sig: String
+    val sig: String,
+    val priority: Int = 3 // 1..5, Packet Priority Engine; default 3 = manual SOS
 )
 
 sealed interface MeshState {
