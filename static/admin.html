@@ -4,71 +4,164 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project Beacon | National Administration & Cluster Telemetry</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
-    <link rel="stylesheet" href="/static/css/index.css">
-    <style>
-        body { font-family: 'Inter', sans-serif; background: #090d16; color: #f3f4f6; margin: 0; padding: 2rem; }
-        .admin-container { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 2rem; }
-        
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 1rem; }
-        .title { font-size: 1.5rem; font-weight: 700; color: #2de1c4; font-family: 'JetBrains Mono', monospace; }
-        
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
-        .stat-card { background: #0f172a; border: 1px solid #1e293b; padding: 1.5rem; border-radius: 12px; text-align: center; }
-        .stat-val { font-size: 2.5rem; font-weight: 800; color: #38bdf8; font-family: 'JetBrains Mono', monospace; }
-        .stat-lbl { font-size: 0.85rem; color: #94a3b8; margin-top: 0.5rem; }
-
-        .panel-box { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 1.5rem; }
-        .panel-title { font-size: 1.1rem; font-weight: 600; color: #f8fafc; margin-bottom: 1rem; }
-        
-        .form-row { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1rem; }
-        .input-field { background: #1e293b; border: 1px solid #334155; color: white; padding: 0.75rem; border-radius: 8px; font-family: inherit; flex: 1; min-width: 180px; }
-        .btn-action { background: #2de1c4; color: #0f172a; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 700; cursor: pointer; }
-    </style>
+    <link rel="stylesheet" href="css/index.css?v=3.0">
+    <link rel="stylesheet" href="/static/css/index.css?v=3.0">
 </head>
 <body>
-    <div class="admin-container">
-        <div class="header">
-            <div class="title">BEACON ADMIN // NATIONAL COMMAND CORE</div>
-            <button onclick="fetchStats()" class="btn-action" style="background: #38bdf8; color: white;">Refresh Telemetry</button>
+
+    <!-- Enterprise Top Navigation Bar with Fancy Glassmorphic Pill Tabs -->
+    <nav class="beacon-navbar">
+        <a href="landing.html" class="beacon-brand">
+            <div class="beacon-logo-icon">⚙️</div>
+            <span class="beacon-brand-name">PROJECT BEACON</span>
+        </a>
+
+        <div class="beacon-nav-links">
+            <a href="landing.html" class="beacon-nav-item">📊 Overview</a>
+            <a href="victim.html" class="beacon-nav-item">🚨 Citizen SOS</a>
+            <a href="officer.html" class="beacon-nav-item">🛡️ Officer Command</a>
+            <a href="admin.html" class="beacon-nav-item active">⚙️ National Admin</a>
         </div>
 
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-val" id="valTotal">0</div>
-                <div class="stat-lbl">Total Dispatches Ingested</div>
+        <div style="display: flex; align-items: center; gap: var(--space-padding-sm);">
+            <button onclick="fetchStats()" class="btn-primary" style="padding: 0.4rem 0.9rem; font-size: 0.8rem;">
+                🔄 Refresh
+            </button>
+            <a href="#authSection" id="navAuthBtn" class="btn-auth-blue" onclick="scrollToAuthSection()">
+                🔑 Login / Auth
+            </a>
+        </div>
+    </nav>
+
+    <div class="app-container">
+        <!-- Telemetry Stats Counter Grid -->
+        <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+            <div class="stat-card glass-panel" style="text-align: center; padding: 1.5rem;">
+                <div class="stat-val" id="valTotal" style="font-size: 2.2rem; font-weight: 800; font-family: var(--font-mono); color: var(--color-cyan);">0</div>
+                <div class="stat-lbl" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Total Dispatches Ingested</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-val" id="valActive" style="color: #ef4444;">0</div>
-                <div class="stat-lbl">Active Unresolved Emergencies</div>
+
+            <div class="stat-card glass-panel" style="text-align: center; padding: 1.5rem;">
+                <div class="stat-val" id="valActive" style="font-size: 2.2rem; font-weight: 800; font-family: var(--font-mono); color: var(--color-red);">0</div>
+                <div class="stat-lbl" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Active Unresolved Emergencies</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-val" id="valGateways" style="color: #2de1c4;">0</div>
-                <div class="stat-lbl">Active Gateway Relay Nodes</div>
+
+            <div class="stat-card glass-panel" style="text-align: center; padding: 1.5rem;">
+                <div class="stat-val" id="valGateways" style="font-size: 2.2rem; font-weight: 800; font-family: var(--font-mono); color: var(--color-green);">0</div>
+                <div class="stat-lbl" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Active Gateway Relay Nodes</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-val" id="valClusters" style="color: #f59e0b;">0</div>
-                <div class="stat-lbl">Mass Casualty Incident Clusters</div>
+
+            <div class="stat-card glass-panel" style="text-align: center; padding: 1.5rem;">
+                <div class="stat-val" id="valClusters" style="font-size: 2.2rem; font-weight: 800; font-family: var(--font-mono); color: var(--color-orange);">0</div>
+                <div class="stat-lbl" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Mass Casualty Incident Clusters</div>
             </div>
         </div>
 
-        <div class="panel-box">
-            <div class="panel-title">User & Officer Provisioning (RBAC Control)</div>
-            <div class="form-row">
-                <input type="email" id="provEmail" placeholder="Officer / Admin Email" class="input-field">
-                <input type="text" id="provName" placeholder="Full Name / Officer Rank" class="input-field">
-                <select id="provRole" class="input-field">
+        <!-- User & Officer Provisioning Panel (RBAC Control) -->
+        <div class="glass-panel" style="margin-bottom: 1.5rem;">
+            <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.4rem; font-family: var(--font-mono);">
+                USER & OFFICER PROVISIONING (RBAC CONTROL)
+            </h3>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.25rem;">
+                Provision national administrator accounts and regional emergency officer credentials.
+            </p>
+
+            <div style="display: flex; flex-wrap: wrap; gap: var(--space-padding); align-items: center;">
+                <input type="email" id="provEmail" placeholder="Officer / Admin Email" class="beacon-input" style="flex: 1; min-width: 220px;">
+                <input type="text" id="provName" placeholder="Full Name / Officer Rank" class="beacon-input" style="flex: 1; min-width: 200px;">
+                
+                <select id="provRole" class="beacon-input" style="flex: 0.6; min-width: 140px;">
                     <option value="OFFICER">OFFICER</option>
                     <option value="ADMIN">ADMIN</option>
                     <option value="VICTIM">VICTIM</option>
                 </select>
-                <input type="text" id="provRegion" placeholder="Jurisdiction Region (e.g. DL-CENTRAL)" class="input-field">
-                <button onclick="provisionUser()" class="btn-action">Provision Identity</button>
+
+                <input type="text" id="provRegion" placeholder="Jurisdiction Region (e.g. DL-CENTRAL)" class="beacon-input" style="flex: 1; min-width: 200px;">
+
+                <button onclick="provisionUser()" class="btn-primary" style="padding: 0.85rem 1.5rem;">
+                    PROVISION IDENTITY
+                </button>
+            </div>
+        </div>
+
+        <!-- Mass Casualty Incident Cluster Telemetry Panel -->
+        <div class="glass-panel">
+            <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.4rem; font-family: var(--font-mono);">
+                MASS CASUALTY INCIDENT CLUSTERS
+            </h3>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.25rem;">
+                Collective intelligence engine monitoring victim density (>3 victims within 500m radius).
+            </p>
+
+            <div id="clustersContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem;">
+                <div style="text-align: center; padding: 2rem; color: var(--text-muted); grid-column: 1 / -1;">
+                    <p style="font-size: 0.9rem;">No active mass casualty clusters detected.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dedicated Bottom Authentication Console -->
+        <div id="authSection" class="glass-panel" style="margin-top: 1.5rem; border-color: var(--color-cyan); box-shadow: var(--glow-medium);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                <div class="beacon-logo-icon" style="width: 34px; height: 34px; font-size: 1rem; background: linear-gradient(135deg, var(--color-cyan), var(--color-green));">🔑</div>
+                <div>
+                    <h3 style="font-size: 1.2rem; font-weight: 800; font-family: var(--font-mono); color: var(--text-primary); margin: 0;">
+                        IDENTITY AUTHENTICATION & PROVISIONING CONSOLE
+                    </h3>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 2px;">
+                        Brevo SMTP 6-Digit OTP Login & RBAC Identity Control
+                    </p>
+                </div>
+            </div>
+
+            <!-- STEP 1: Email Form -->
+            <div id="authBottomStepEmail" style="max-width: 540px;">
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; font-size: 0.78rem; font-family: var(--font-mono); color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase;">
+                        OFFICIAL WORK EMAIL
+                    </label>
+                    <input type="email" id="authBottomEmailInput" class="beacon-input" placeholder="officer@beacon.app" />
+                </div>
+
+                <button id="btnBottomSendOtp" onclick="handleBottomSendOtp()" class="btn-primary" style="padding: 0.85rem 1.5rem; width: 100%;">
+                    REQUEST 6-DIGIT OTP CODE ➔
+                </button>
+                <div id="authBottomEmailMsg" style="font-size: 0.82rem; text-align: center; margin-top: 0.85rem; color: var(--color-cyan); display: none;"></div>
+            </div>
+
+            <!-- STEP 2: 6-Digit OTP Grid -->
+            <div id="authBottomStepOtp" style="max-width: 540px; display: none;">
+                <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 0.5rem;">
+                    Enter 6-digit verification code sent to <strong id="authBottomTargetEmail" style="color: var(--color-cyan);"></strong>.
+                </p>
+                <p style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--color-orange); margin-bottom: 1rem;">
+                    ⏱️ CODE EXPIRES IN: <span id="authBottomTimer">05:00</span>
+                </p>
+
+                <div class="otp-box-grid">
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="0" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="1" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="2" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="3" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="4" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="5" />
+                </div>
+
+                <button id="btnBottomVerifyOtp" onclick="handleBottomVerifyOtp()" class="btn-primary" style="padding: 0.85rem 1.5rem; width: 100%;">
+                    VERIFY & AUTHENTICATE ➔
+                </button>
+                <div id="authBottomOtpMsg" style="font-size: 0.82rem; text-align: center; margin-top: 0.85rem; color: var(--color-red); display: none;"></div>
             </div>
         </div>
     </div>
 
-    <script src="/static/js/admin.js"></script>
+    <script src="js/mesh-bg.js?v=3.0"></script>
+    <script src="/static/js/mesh-bg.js?v=3.0"></script>
+    <script src="js/auth-modal.js?v=3.0"></script>
+    <script src="/static/js/auth-modal.js?v=3.0"></script>
+    <script src="js/admin.js?v=3.0"></script>
+    <script src="/static/js/admin.js?v=3.0"></script>
 </body>
 </html>

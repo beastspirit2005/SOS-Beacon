@@ -15,34 +15,9 @@ function initMap() {
     }).addTo(map);
 }
 
-async function requestLogin() {
-    const email = prompt("Enter Officer Email for OTP Authentication:");
-    if (!email) return;
-
-    try {
-        await fetch('/api/v1/auth/request-otp', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
-        });
-        const otp = prompt("Enter 6-digit OTP sent to your email:");
-        if (!otp) return;
-
-        const res = await fetch('/api/v1/auth/verify-otp', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, otp_code: otp })
-        });
-        const data = await res.json();
-        if (data.access_token) {
-            authToken = data.access_token;
-            localStorage.setItem('beacon_token', authToken);
-            document.getElementById('officerIdentity').innerText = `Logged in: ${data.user.name} (${data.user.role})`;
-            alert("Authenticated successfully!");
-            pollIncidents();
-        }
-    } catch (e) {
-        alert("Auth failed: " + e.message);
+function requestLogin() {
+    if (typeof window.openAuthModal === 'function') {
+        window.openAuthModal();
     }
 }
 
@@ -53,7 +28,8 @@ function startPolling() {
 
 async function pollIncidents() {
     try {
-        const headers = authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
+        const token = localStorage.getItem('beacon_token');
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
         const res = await fetch(`/api/v1/officer/incidents?since_ms=0`, { headers });
         if (!res.ok) return;
 
@@ -72,14 +48,14 @@ function renderQueue(incidents) {
         card.className = `incident-card priority-${inc.priority}`;
         card.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                <span class="severity-badge severity-${inc.severity}">${inc.severity} (P${inc.priority})</span>
-                <span style="font-size: 0.75rem; color: #64748b; font-family: monospace;">${new Date(inc.received_at).toLocaleTimeString()}</span>
+                <span class="severity-badge severity-${inc.severity}" style="padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; font-weight: bold; background: rgba(255,59,48,0.15); color: var(--color-red);">${inc.severity} (P${inc.priority})</span>
+                <span style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">${new Date(inc.received_at).toLocaleTimeString()}</span>
             </div>
-            <div style="font-weight: 600; font-size: 0.9rem; color: #f8fafc; margin-bottom: 0.25rem;">${inc.ai_summary || inc.payload}</div>
-            <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.75rem;">Status: <strong style="color: #38bdf8;">${inc.status}</strong></div>
+            <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary); margin-bottom: 0.25rem;">${inc.ai_summary || inc.payload}</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">Status: <strong style="color: var(--color-cyan);">${inc.status}</strong></div>
             <div style="display: flex; gap: 0.5rem;">
-                <button class="btn-dispatch" onclick="updateStatus('${inc.sos_id}', 'RESPONDING')">Respond</button>
-                <button class="btn-dispatch" style="background: #22c55e; color: white;" onclick="updateStatus('${inc.sos_id}', 'RESOLVED')">Resolve</button>
+                <button class="btn-primary" style="padding: 4px 10px; font-size: 0.78rem;" onclick="updateStatus('${inc.sos_id}', 'RESPONDING')">Respond</button>
+                <button class="btn-primary" style="background: var(--color-green); color: var(--bg-gradient-bottom); padding: 4px 10px; font-size: 0.78rem;" onclick="updateStatus('${inc.sos_id}', 'RESOLVED')">Resolve</button>
             </div>
         `;
         list.appendChild(card);
@@ -87,7 +63,7 @@ function renderQueue(incidents) {
         // Update Map Marker
         if (!markers[inc.sos_id]) {
             const marker = L.circleMarker([inc.lat, inc.lon], {
-                color: inc.severity === 'CRITICAL' ? '#ef4444' : '#f59e0b',
+                color: inc.severity === 'CRITICAL' ? '#ff3b30' : '#f59e0b',
                 radius: 10,
                 fillOpacity: 0.8
             }).addTo(map);
@@ -101,7 +77,8 @@ function renderQueue(incidents) {
 
 async function updateStatus(sos_id, new_status) {
     try {
-        const headers = authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
+        const token = localStorage.getItem('beacon_token');
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
         await fetch(`/api/v1/officer/incidents/${sos_id}/status?new_status=${new_status}`, {
             method: 'POST',
             headers
