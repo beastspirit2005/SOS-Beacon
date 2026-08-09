@@ -566,10 +566,13 @@ private fun HomeScreenContent(
             }
         } else {
             // Main Home Screen Layout (sequenced fade/slide in after circle settles)
-            var contentVisible by remember { mutableStateOf(false) }
+            val isPreview = androidx.compose.ui.platform.LocalInspectionMode.current
+            var contentVisible by remember { mutableStateOf(isPreview) }
             LaunchedEffect(Unit) {
-                delay(150)
-                contentVisible = true
+                if (!isPreview) {
+                    delay(150)
+                    contentVisible = true
+                }
             }
 
             AnimatedVisibility(
@@ -1007,10 +1010,13 @@ private fun SendingScreenContent(
     modifier: Modifier = Modifier
 ) {
     val isReducedMotion = isReducedMotionEnabled()
-    var contentVisible by remember { mutableStateOf(false) }
+    val isPreview = androidx.compose.ui.platform.LocalInspectionMode.current
+    var contentVisible by remember { mutableStateOf(isPreview) }
     LaunchedEffect(Unit) {
-        delay(150)
-        contentVisible = true
+        if (!isPreview) {
+            delay(150)
+            contentVisible = true
+        }
     }
 
     val progress = (remainingMillis / 5000f).coerceIn(0f, 1f)
@@ -1176,10 +1182,13 @@ private fun StatusScreenContent(
         else -> 0
     }
 
-    var contentVisible by remember { mutableStateOf(false) }
+    val isPreview = androidx.compose.ui.platform.LocalInspectionMode.current
+    var contentVisible by remember { mutableStateOf(isPreview) }
     LaunchedEffect(Unit) {
-        delay(150)
-        contentVisible = true
+        if (!isPreview) {
+            delay(150)
+            contentVisible = true
+        }
     }
 
     AnimatedVisibility(
@@ -1421,10 +1430,13 @@ private fun DeliveredScreenContent(
         }
     }
 
-    var contentVisible by remember { mutableStateOf(false) }
+    val isPreview = androidx.compose.ui.platform.LocalInspectionMode.current
+    var contentVisible by remember { mutableStateOf(isPreview) }
     LaunchedEffect(Unit) {
-        delay(150)
-        contentVisible = true
+        if (!isPreview) {
+            delay(150)
+            contentVisible = true
+        }
     }
 
     AnimatedVisibility(
@@ -2285,73 +2297,85 @@ private fun MeshViewScreenContent(
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 fun HomeScreenPreview() {
-    MeshSosRelayTheme {
-        HomeScreenContent(
-            meshState = MeshState.Searching(peers = 2),
-            volunteerMode = false,
-            deviceRole = "observer",
-            soundOn = false,
-            permissionGranted = true,
-            onPermissionGranted = {},
-            onCycleDeviceRole = {},
-            onToggleSound = {},
-            onTriggerSos = {},
-            onReset = {},
-            onResetAll = {},
-            onVolunteerModeChange = {},
-            onNavigate = {}
-        )
+    val sharedCircleState = remember { SharedCircleState() }
+    CompositionLocalProvider(LocalSharedCircleState provides sharedCircleState) {
+        MeshSosRelayTheme {
+            HomeScreenContent(
+                meshState = MeshState.Searching(peers = 2),
+                volunteerMode = false,
+                deviceRole = "observer",
+                soundOn = false,
+                permissionGranted = true,
+                onPermissionGranted = {},
+                onCycleDeviceRole = {},
+                onToggleSound = {},
+                onTriggerSos = {},
+                onReset = {},
+                onResetAll = {},
+                onVolunteerModeChange = {},
+                onNavigate = {}
+            )
+        }
     }
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 fun SendingScreenPreview() {
-    MeshSosRelayTheme {
-        SendingScreenContent(
-            remainingMillis = 3500,
-            onCancel = {},
-            onNavigate = {},
-            onReset = {}
-        )
+    val sharedCircleState = remember { SharedCircleState() }
+    CompositionLocalProvider(LocalSharedCircleState provides sharedCircleState) {
+        MeshSosRelayTheme {
+            SendingScreenContent(
+                remainingMillis = 3500,
+                onCancel = {},
+                onNavigate = {},
+                onReset = {}
+            )
+        }
     }
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 fun StatusScreenPreview() {
-    MeshSosRelayTheme {
-        StatusScreenContent(
-            meshState = MeshState.InFlight(peers = 3, hops = 2),
-            topology = MeshTopology(
-                nodes = listOf(
-                    TopoNode("victim", "My Device (Victim)", isVictim = true, nodeRole = "victim", priority = 3),
-                    TopoNode("peer_b", "Peer B", isRelay = true, nodeRole = "relay", priority = 4),
-                    TopoNode("peer_c", "Peer C", isRelay = true, nodeRole = "relay", priority = 5),
-                    TopoNode("gateway", "Gateway Phone", isGateway = true, nodeRole = "gateway", priority = 3)
+    val sharedCircleState = remember { SharedCircleState() }
+    CompositionLocalProvider(LocalSharedCircleState provides sharedCircleState) {
+        MeshSosRelayTheme {
+            StatusScreenContent(
+                meshState = MeshState.InFlight(peers = 3, hops = 2),
+                topology = MeshTopology(
+                    nodes = listOf(
+                        TopoNode("victim", "My Device (Victim)", isVictim = true, nodeRole = "victim", priority = 3),
+                        TopoNode("peer_b", "Peer B", isRelay = true, nodeRole = "relay", priority = 4),
+                        TopoNode("peer_c", "Peer C", isRelay = true, nodeRole = "relay", priority = 5),
+                        TopoNode("gateway", "Gateway Phone", isGateway = true, nodeRole = "gateway", priority = 3)
+                    ),
+                    edges = listOf(
+                        TopoEdge("victim", "peer_b"),
+                        TopoEdge("peer_b", "peer_c"),
+                        TopoEdge("peer_c", "gateway")
+                    ),
+                    activeHopPath = listOf("victim", "peer_b", "peer_c")
                 ),
-                edges = listOf(
-                    TopoEdge("victim", "peer_b"),
-                    TopoEdge("peer_b", "peer_c"),
-                    TopoEdge("peer_c", "gateway")
-                ),
-                activeHopPath = listOf("victim", "peer_b", "peer_c")
-            ),
-            onNavigate = {},
-            onReset = {}
-        )
+                onNavigate = {},
+                onReset = {}
+            )
+        }
     }
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 fun DeliveredScreenPreview() {
-    MeshSosRelayTheme {
-        DeliveredScreenContent(
-            meshState = MeshState.Delivered,
-            onNavigate = {},
-            onReset = {}
-        )
+    val sharedCircleState = remember { SharedCircleState() }
+    CompositionLocalProvider(LocalSharedCircleState provides sharedCircleState) {
+        MeshSosRelayTheme {
+            DeliveredScreenContent(
+                meshState = MeshState.Delivered,
+                onNavigate = {},
+                onReset = {}
+            )
+        }
     }
 }
 
@@ -2392,39 +2416,45 @@ fun ReceivedAlertsScreenPreview() {
             priority = 4
         )
     )
-    MeshSosRelayTheme {
-        ReceivedAlertsScreenContent(
-            alerts = alerts,
-            onClearAlerts = {},
-            onPopulateAlerts = {},
-            onNavigate = {},
-            onReset = {}
-        )
+    val sharedCircleState = remember { SharedCircleState() }
+    CompositionLocalProvider(LocalSharedCircleState provides sharedCircleState) {
+        MeshSosRelayTheme {
+            ReceivedAlertsScreenContent(
+                alerts = alerts,
+                onClearAlerts = {},
+                onPopulateAlerts = {},
+                onNavigate = {},
+                onReset = {}
+            )
+        }
     }
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 fun MeshViewScreenPreview() {
-    MeshSosRelayTheme {
-        MeshViewScreenContent(
-            meshState = MeshState.InFlight(peers = 3, hops = 2),
-            topology = MeshTopology(
-                nodes = listOf(
-                    TopoNode("victim", "My Device (Victim)", isVictim = true, nodeRole = "victim", priority = 3),
-                    TopoNode("peer_b", "Peer B", isRelay = true, nodeRole = "relay", priority = 4),
-                    TopoNode("peer_c", "Peer C", isRelay = true, nodeRole = "relay", priority = 5),
-                    TopoNode("gateway", "Gateway Phone", isGateway = true, nodeRole = "gateway", priority = 3)
+    val sharedCircleState = remember { SharedCircleState() }
+    CompositionLocalProvider(LocalSharedCircleState provides sharedCircleState) {
+        MeshSosRelayTheme {
+            MeshViewScreenContent(
+                meshState = MeshState.InFlight(peers = 3, hops = 2),
+                topology = MeshTopology(
+                    nodes = listOf(
+                        TopoNode("victim", "My Device (Victim)", isVictim = true, nodeRole = "victim", priority = 3),
+                        TopoNode("peer_b", "Peer B", isRelay = true, nodeRole = "relay", priority = 4),
+                        TopoNode("peer_c", "Peer C", isRelay = true, nodeRole = "relay", priority = 5),
+                        TopoNode("gateway", "Gateway Phone", isGateway = true, nodeRole = "gateway", priority = 3)
+                    ),
+                    edges = listOf(
+                        TopoEdge("victim", "peer_b"),
+                        TopoEdge("peer_b", "peer_c"),
+                        TopoEdge("peer_c", "gateway")
+                    ),
+                    activeHopPath = listOf("victim", "peer_b", "peer_c")
                 ),
-                edges = listOf(
-                    TopoEdge("victim", "peer_b"),
-                    TopoEdge("peer_b", "peer_c"),
-                    TopoEdge("peer_c", "gateway")
-                ),
-                activeHopPath = listOf("victim", "peer_b", "peer_c")
-            ),
-            onNavigate = {},
-            onReset = {}
-        )
+                onNavigate = {},
+                onReset = {}
+            )
+        }
     }
 }
