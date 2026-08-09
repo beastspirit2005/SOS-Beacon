@@ -55,7 +55,7 @@ class MeshSosController(
         val json = Json { ignoreUnknownKeys = true; isLenient = true }
         Retrofit.Builder()
             // Pointing to the live Vercel production backend
-            .baseUrl("https://sos-beacon-pi.vercel.app/")
+            .baseUrl("https://sos-beacon-seven.vercel.app/")
             .client(client)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
