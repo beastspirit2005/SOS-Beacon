@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Beacon | National Administration & Cluster Telemetry</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+    <link rel="stylesheet" href="/static/css/index.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #090d16; color: #f3f4f6; margin: 0; padding: 2rem; }
+        .admin-container { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 2rem; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 1rem; }
+        .title { font-size: 1.5rem; font-weight: 700; color: #2de1c4; font-family: 'JetBrains Mono', monospace; }
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+        .stat-card { background: #0f172a; border: 1px solid #1e293b; padding: 1.5rem; border-radius: 12px; text-align: center; }
+        .stat-val { font-size: 2.5rem; font-weight: 800; color: #38bdf8; font-family: 'JetBrains Mono', monospace; }
+        .stat-lbl { font-size: 0.85rem; color: #94a3b8; margin-top: 0.5rem; }
+
+        .panel-box { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 1.5rem; }
+        .panel-title { font-size: 1.1rem; font-weight: 600; color: #f8fafc; margin-bottom: 1rem; }
+        
+        .form-row { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1rem; }
+        .input-field { background: #1e293b; border: 1px solid #334155; color: white; padding: 0.75rem; border-radius: 8px; font-family: inherit; flex: 1; min-width: 180px; }
+        .btn-action { background: #2de1c4; color: #0f172a; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 700; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="header">
+            <div class="title">BEACON ADMIN // NATIONAL COMMAND CORE</div>
+            <button onclick="fetchStats()" class="btn-action" style="background: #38bdf8; color: white;">Refresh Telemetry</button>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-val" id="valTotal">0</div>
+                <div class="stat-lbl">Total Dispatches Ingested</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val" id="valActive" style="color: #ef4444;">0</div>
+                <div class="stat-lbl">Active Unresolved Emergencies</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val" id="valGateways" style="color: #2de1c4;">0</div>
+                <div class="stat-lbl">Active Gateway Relay Nodes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val" id="valClusters" style="color: #f59e0b;">0</div>
+                <div class="stat-lbl">Mass Casualty Incident Clusters</div>
+            </div>
+        </div>
+
+        <div class="panel-box">
+            <div class="panel-title">User & Officer Provisioning (RBAC Control)</div>
+            <div class="form-row">
+                <input type="email" id="provEmail" placeholder="Officer / Admin Email" class="input-field">
+                <input type="text" id="provName" placeholder="Full Name / Officer Rank" class="input-field">
+                <select id="provRole" class="input-field">
+                    <option value="OFFICER">OFFICER</option>
+                    <option value="ADMIN">ADMIN</option>
+                    <option value="VICTIM">VICTIM</option>
+                </select>
+                <input type="text" id="provRegion" placeholder="Jurisdiction Region (e.g. DL-CENTRAL)" class="input-field">
+                <button onclick="provisionUser()" class="btn-action">Provision Identity</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/admin.js"></script>
+</body>
+</html>

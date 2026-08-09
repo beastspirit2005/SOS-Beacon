@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Beacon | Emergency Communication Fabric</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚨</text></svg>">
+    <link rel="stylesheet" href="/static/css/index.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0b0f19; color: #f3f4f6; margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; }
+        .hero { text-align: center; padding: 4rem 1rem 2rem; max-width: 900px; margin: 0 auto; }
+        .hero h1 { font-size: 3.5rem; font-weight: 700; background: linear-gradient(135deg, #2de1c4 0%, #38bdf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 1rem; }
+        .tagline { font-size: 1.25rem; color: #9ca3af; font-style: italic; margin-bottom: 2rem; }
+        
+        .portal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; max-width: 1100px; margin: 0 auto; padding: 2rem; width: 90%; }
+        
+        .portal-card { background: rgba(17, 24, 39, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(12px); border-radius: 16px; padding: 2rem; text-decoration: none; color: inherit; transition: all 0.3s ease; display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .portal-card:hover { transform: translateY(-6px); border-color: #2de1c4; box-shadow: 0 12px 30px rgba(45, 225, 196, 0.15); }
+        .portal-icon { font-size: 3.5rem; margin-bottom: 1rem; }
+        .portal-title { font-size: 1.4rem; font-weight: 600; color: #f9fafb; margin-bottom: 0.5rem; }
+        .portal-desc { font-size: 0.95rem; color: #9ca3af; line-height: 1.5; }
+        
+        .tech-money-shot { max-width: 1100px; margin: 2rem auto; padding: 2rem; background: rgba(15, 23, 42, 0.6); border: 1px solid #1e293b; border-radius: 16px; width: 90%; text-align: center; }
+        .flow-diagram { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 1rem; margin-top: 1.5rem; font-family: 'JetBrains Mono', monospace; }
+        .flow-node { background: #1e293b; padding: 0.75rem 1.25rem; border-radius: 8px; border: 1px solid #334155; font-size: 0.9rem; color: #38bdf8; }
+        .flow-arrow { color: #2de1c4; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <h1>PROJECT BEACON</h1>
+        <div class="tagline">"When infrastructure fails, people become the network."</div>
+        <p style="color: #cbd5e1; max-width: 700px; margin: 0 auto; line-height: 1.6;">
+            Decentralized emergency communication infrastructure built to route distress signals through offline mesh networks, edge gateways, AI triage engines, and tactical responder command centers.
+        </p>
+    </div>
+
+    <div class="portal-grid">
+        <a href="/victim" class="portal-card">
+            <div class="portal-icon">🚨</div>
+            <div class="portal-title">Victim Portal</div>
+            <div class="portal-desc">Broadcast emergency SOS packets with live GPS location and visible transmission lifecycle tracking.</div>
+        </a>
+
+        <a href="/officer" class="portal-card">
+            <div class="portal-icon">🛡️</div>
+            <div class="portal-title">Officer Command</div>
+            <div class="portal-desc">Tactical command dashboard with priority incident queue, live Leaflet map, and Groq AI triage summaries.</div>
+        </a>
+
+        <a href="/admin" class="portal-card">
+            <div class="portal-icon">⚙️</div>
+            <div class="portal-title">National Admin</div>
+            <div class="portal-desc">Nationwide telemetry console, Mass Casualty Incident Cluster detection, and user provisioning.</div>
+        </a>
+    </div>
+
+    <div class="tech-money-shot">
+        <h3 style="color: #f8fafc; margin-bottom: 0.5rem;">Distributed Communication Topology</h3>
+        <p style="color: #94a3b8; font-size: 0.9rem;">Store-Carry-Forward Mesh → Gateway Ingestion → Groq AI Triage → Officer Dispatch</p>
+        <div class="flow-diagram">
+            <div class="flow-node">Android Victim Node</div>
+            <div class="flow-arrow">➔</div>
+            <div class="flow-node">Multi-hop Mesh</div>
+            <div class="flow-arrow">➔</div>
+            <div class="flow-node">Beacon Gateway</div>
+            <div class="flow-arrow">➔</div>
+            <div class="flow-node">FastAPI Core</div>
+            <div class="flow-arrow">➔</div>
+            <div class="flow-node">Groq Llama-3 AI</div>
+            <div class="flow-arrow">➔</div>
+            <div class="flow-node">Officer Command</div>
+        </div>
+    </div>
+</body>
+</html>

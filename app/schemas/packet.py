@@ -1,18 +1,19 @@
 from pydantic import BaseModel, Field
-from typing import Literal, Optional
+from typing import Optional
 
 class SosPacket(BaseModel):
-    msg_id: str = Field(..., description="uuid v4 — unique per SOS; DEDUP KEY")
-    origin_id: str = Field(..., description="anonymised victim device id")
-    created_at: int = Field(..., description="epoch ms", gt=0)
+    msg_id: str = Field(..., description="Unique packet identifier (e.g. bcn-9a8f2c)")
+    origin_id: str = Field(..., description="Unique sender/device ID")
+    created_at: int = Field(..., description="Epoch timestamp in ms when created")
     lat: float = Field(..., ge=-90.0, le=90.0)
     lon: float = Field(..., ge=-180.0, le=180.0)
-    acc: float = Field(..., ge=0.0, description="gps accuracy (m)")
-    severity: Literal["info", "warn", "critical"] = Field(..., description="info | warn | critical")
-    priority: Optional[int] = Field(3, ge=1, le=5, description="1..5 (Packet Priority Engine; default 3 if not sent by client)")
-    confidence: float = Field(..., ge=0.0, le=1.0, description="0.0..1.0 (trigger confidence)")
-    trigger_type: Literal["manual", "partial", "fall", "scream", "no_motion", "missed_checkin", "crash"] = Field(...)
-    ttl: int = Field(..., ge=0, description="remaining hops; decremented each relay")
-    hops: int = Field(..., ge=0, description="hops so far; incremented each relay")
-    payload: str = Field(..., max_length=240, description="short message / partial text (<=240 chars; may be ENCRYPTED)")
-    sig: str = Field(..., min_length=1, description="signature over the packet for authenticity")
+    acc: float = Field(default=10.0, description="GPS accuracy in meters")
+    severity: str = Field(default="CRITICAL", description="CRITICAL, WARNING, INFO")
+    priority: int = Field(default=3, ge=1, le=5)
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    trigger_type: str = Field(default="MANUAL", description="MANUAL, FALL_DETECTION, STILLNESS, SOUND")
+    ttl: int = Field(default=7, ge=0, le=15, description="Time to live / max hops remaining")
+    hops: int = Field(default=0, ge=0, description="Number of hops traversed")
+    payload: str = Field(..., description="Emergency description or message")
+    signature: str = Field(default="UNSIGNED", description="ECDSA digital signature")
+    gateway_id: Optional[str] = Field(default=None, description="ID of gateway that ingested this packet")
