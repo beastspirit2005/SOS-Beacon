@@ -21,10 +21,11 @@ import com.example.meshsosrelay.api.SignatureUtils
 import com.example.meshsosrelay.contract.SosPacket
 import com.example.meshsosrelay.sensors.GpsLocationManager
 import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
-import retrofit2.converter.kotlinx.serialization.KotlinSerializationConverterFactory
+import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.util.UUID
 
 /**
@@ -55,7 +56,7 @@ class MeshSosController(
             // 10.0.2.2 routes from the Android emulator to Windows localhost
             .baseUrl("http://10.0.2.2:8000/")
             .client(client)
-            .addConverterFactory(KotlinSerializationConverterFactory.create(json))
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
             .create(BeaconApi::class.java)
     }
