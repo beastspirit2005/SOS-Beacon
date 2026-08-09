@@ -45,6 +45,76 @@ import com.example.meshsosrelay.theme.*
 import com.example.meshsosrelay.ui.fake.FakeSosController
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.unit.Dp
+
+class SharedCircleState {
+    var isVisible by mutableStateOf(false)
+    var targetOffset by mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
+    var targetSize by mutableStateOf(160.dp)
+    var targetColor by mutableStateOf(SignalSosEmber)
+    
+    var currentScreen by mutableStateOf("home")
+    var sendingProgress by mutableStateOf(1f)
+    var hopCount by mutableStateOf(0)
+    var isSearching by mutableStateOf(true)
+
+    fun updateTarget(
+        screen: String,
+        offset: androidx.compose.ui.geometry.Offset,
+        size: Dp,
+        color: Color,
+        progress: Float = 1f,
+        hops: Int = 0,
+        searching: Boolean = true
+    ) {
+        isVisible = true
+        currentScreen = screen
+        targetOffset = offset
+        targetSize = size
+        targetColor = color
+        sendingProgress = progress
+        hopCount = hops
+        isSearching = searching
+    }
+}
+
+val LocalSharedCircleState = staticCompositionLocalOf<SharedCircleState> {
+    error("No SharedCircleState provided")
+}
+
+@Composable
+fun SharedCirclePlaceholder(
+    screen: String,
+    size: Dp,
+    color: Color,
+    modifier: Modifier = Modifier,
+    progress: Float = 1f,
+    hops: Int = 0,
+    searching: Boolean = true
+) {
+    val state = LocalSharedCircleState.current
+    Box(
+        modifier = modifier
+            .size(size)
+            .onGloballyPositioned { coordinates ->
+                if (coordinates.isAttached) {
+                    val position = coordinates.positionInWindow()
+                    state.updateTarget(
+                        screen = screen,
+                        offset = position,
+                        size = size,
+                        color = color,
+                        progress = progress,
+                        hops = hops,
+                        searching = searching
+                    )
+                }
+            }
+    )
+}
+
 
 // Extension properties and methods to support fake/debug fields on the seam interface
 val SosController.volunteerMode: kotlinx.coroutines.flow.MutableStateFlow<Boolean>
@@ -373,14 +443,25 @@ private fun HomeScreenContent(
                 }
             }
         } else {
-            // Main Home Screen Layout
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
+            // Main Home Screen Layout (sequenced fade/slide in after circle settles)
+            var contentVisible by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                delay(150)
+                contentVisible = true
+            }
+
+            AnimatedVisibility(
+                visible = contentVisible,
+                enter = fadeIn(animationSpec = tween(500)) + slideInVertically(animationSpec = tween(500)) { 30 },
+                exit = fadeOut(animationSpec = tween(300))
             ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
                 // Header with settings toggle & live role chip
                 Box(
                     modifier = Modifier
@@ -526,69 +607,37 @@ private fun HomeScreenContent(
                     }
                 }
 
-                // Central SOS trigger / Relaying state
-                if (volunteerMode) {
-                    // Volunteer Mode ON: Personal SOS is disabled, showing active relaying
-                    Box(
-                        modifier = Modifier.size(300.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        // Slow, calm teal sonar pulse indicating background relaying
+                // Central SOS trigger / Relaying state (gated behind shared transition layout placeholders)
+                Box(
+                    modifier = Modifier.size(300.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (volunteerMode) {
                         SonarPulse(
                             modifier = Modifier.fillMaxSize(),
                             color = SignalSafeTeal,
                             ringCount = 3,
                             durationMillis = 4000
                         )
-
-                        Box(
-                            modifier = Modifier
-                                .size(160.dp)
-                                .clip(CircleShape)
-                                .background(SurfaceNearBlack)
-                                .border(2.dp, SignalSafeTeal, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "RELAYING",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = SignalSafeTeal,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.sp
-                                )
-                                Text(
-                                    text = "ACTIVE",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = OnSurfaceOffWhite,
-                                    letterSpacing = 1.sp
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    // Personal SOS Trigger
-                    Box(
-                        modifier = Modifier.size(300.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        // rings breathe every 3s (unless reduced motion is checked)
+                        SharedCirclePlaceholder(
+                            screen = "relay",
+                            size = 160.dp,
+                            color = SignalSafeTeal
+                        )
+                    } else {
                         SonarPulse(
                             modifier = Modifier.fillMaxSize(),
                             color = SignalSosEmber,
                             ringCount = 3,
                             durationMillis = 3000
                         )
-
-                        // Stiff spring button scaling
                         val scale = remember { Animatable(1f) }
-
-                        Box(
+                        SharedCirclePlaceholder(
+                            screen = "home",
+                            size = 160.dp,
+                            color = SignalSosEmber,
                             modifier = Modifier
-                                .size(160.dp)
                                 .scale(scale.value)
-                                .clip(CircleShape)
-                                .background(SignalSosEmber)
                                 .pointerInput(Unit) {
                                     detectTapGestures(
                                         onPress = {
@@ -607,24 +656,8 @@ private fun HomeScreenContent(
                                         }
                                     )
                                 }
-                                .semantics { contentDescription = "Double tap to trigger emergency manual SOS broadcast" },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "SOS",
-                                    style = MaterialTheme.typography.headlineLarge.copy(fontSize = 38.sp),
-                                    color = CanvasNearBlack,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "TAP & HOLD",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = CanvasNearBlack.copy(alpha = 0.8f),
-                                    letterSpacing = 1.sp
-                                )
-                            }
-                        }
+                                .semantics { contentDescription = "Double tap to trigger emergency manual SOS broadcast" }
+                        )
                     }
                 }
 
@@ -721,12 +754,13 @@ private fun HomeScreenContent(
                         )
                     }
                 }
+            }
 
-                DebugNavigationFooter(
-                    onNavigate = onNavigate,
-                    currentRoute = "Home",
-                    onReset = onResetAll
-                )
+            DebugNavigationFooter(
+                onNavigate = onNavigate,
+                currentRoute = "Home",
+                onReset = onResetAll
+            )
             }
         }
     }
@@ -831,98 +865,94 @@ private fun SendingScreenContent(
     onReset: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(CanvasNearBlack)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
+    var contentVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(150)
+        contentVisible = true
+    }
+
+    AnimatedVisibility(
+        visible = contentVisible,
+        enter = fadeIn(animationSpec = tween(500)) + slideInVertically(animationSpec = tween(500)) { 30 },
+        exit = fadeOut(animationSpec = tween(300))
     ) {
         Column(
+            modifier = modifier
+                .fillMaxSize()
+                .background(CanvasNearBlack)
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(top = 24.dp)
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = "SENDING SOS",
-                style = MaterialTheme.typography.labelLarge,
-                color = SignalSosEmber,
-                letterSpacing = 4.sp
-            )
-            Text(
-                text = "BROADCAST STAGING",
-                style = MaterialTheme.typography.labelSmall,
-                color = MutedGray,
-                letterSpacing = 1.5.sp,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-        }
-
-        Box(
-            modifier = Modifier.size(260.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            AcceleratingSonarPulse(
-                modifier = Modifier.fillMaxSize(),
-                color = SignalSosEmber,
-                remainingMillis = remainingMillis,
-                ringCount = 3
-            )
-
-            Canvas(modifier = Modifier.size(180.dp)) {
-                drawCircle(
-                    color = SignalSosEmber.copy(alpha = 0.05f),
-                    style = Stroke(width = 8.dp.toPx())
-                )
-                
-                drawArc(
-                    color = SignalSosEmber,
-                    startAngle = -90f,
-                    sweepAngle = 360f * (remainingMillis / 5000f),
-                    useCenter = false,
-                    style = Stroke(width = 8.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                )
-            }
-
-            val secondsLeft = (remainingMillis + 999) / 1000
-            Text(
-                text = secondsLeft.toString(),
-                style = MaterialTheme.typography.labelLarge.copy(fontSize = 72.sp),
-                color = OnSurfaceOffWhite,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = "Emergency alert will broadcast automatically unless cancelled.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MutedGray,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 24.dp)
-            )
-
-            OutlinedButton(
-                onClick = onCancel,
-                border = BorderStroke(1.dp, SignalSosEmber.copy(alpha = 0.5f)),
-                shape = MaterialTheme.shapes.extraLarge,
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = SignalSosEmber),
-                modifier = Modifier.height(54.dp).width(200.dp)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(top = 24.dp)
             ) {
                 Text(
-                    text = "CANCEL",
+                    text = "SENDING SOS",
                     style = MaterialTheme.typography.labelLarge,
-                    letterSpacing = 2.sp,
-                    fontWeight = FontWeight.Bold
+                    color = SignalSosEmber,
+                    letterSpacing = 4.sp
+                )
+                Text(
+                    text = "BROADCAST STAGING",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MutedGray,
+                    letterSpacing = 1.5.sp,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
-        }
 
-        DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Sending", onReset = onReset)
+            Box(
+                modifier = Modifier.size(260.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                AcceleratingSonarPulse(
+                    modifier = Modifier.fillMaxSize(),
+                    color = SignalSosEmber,
+                    remainingMillis = remainingMillis,
+                    ringCount = 3
+                )
+
+                SharedCirclePlaceholder(
+                    screen = "sending",
+                    size = 180.dp,
+                    color = SignalSosEmber,
+                    progress = remainingMillis / 5000f
+                )
+            }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Emergency alert will broadcast automatically unless cancelled.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MutedGray,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                )
+
+                OutlinedButton(
+                    onClick = onCancel,
+                    border = BorderStroke(1.dp, SignalSosEmber.copy(alpha = 0.5f)),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = SignalSosEmber),
+                    modifier = Modifier.height(54.dp).width(200.dp)
+                ) {
+                    Text(
+                        text = "CANCEL",
+                        style = MaterialTheme.typography.labelLarge,
+                        letterSpacing = 2.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Sending", onReset = onReset)
+        }
     }
 }
 
@@ -975,197 +1005,190 @@ private fun StatusScreenContent(
         else -> 0
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(CanvasNearBlack)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
+    var contentVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(150)
+        contentVisible = true
+    }
+
+    AnimatedVisibility(
+        visible = contentVisible,
+        enter = fadeIn(animationSpec = tween(500)) + slideInVertically(animationSpec = tween(500)) { 30 },
+        exit = fadeOut(animationSpec = tween(300))
     ) {
-        // Status Title
         Column(
+            modifier = modifier
+                .fillMaxSize()
+                .background(CanvasNearBlack)
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(top = 24.dp)
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = if (meshState is MeshState.Searching) "REACHING PEERS" else "RELAYING SOS ALERT",
-                style = MaterialTheme.typography.labelLarge,
-                color = SignalSosEmber,
-                letterSpacing = 4.sp
-            )
-            Text(
-                text = if (meshState is MeshState.Searching) "Broadcasting search query..." else "Packet propagating through mesh",
-                style = MaterialTheme.typography.labelSmall,
-                color = MutedGray,
-                letterSpacing = 1.5.sp,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-        }
+            // Status Title
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(top = 24.dp)
+            ) {
+                Text(
+                    text = if (meshState is MeshState.Searching) "REACHING PEERS" else "RELAYING SOS ALERT",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = SignalSosEmber,
+                    letterSpacing = 4.sp
+                )
+                Text(
+                    text = if (meshState is MeshState.Searching) "Broadcasting search query..." else "Packet propagating through mesh",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MutedGray,
+                    letterSpacing = 1.5.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
 
-        // Live concentric wave showing physical hopping motion
-        Box(
-            modifier = Modifier.size(200.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            // Faster pulsing in flight, slower when searching
-            val pulseSpeed = if (meshState is MeshState.InFlight) 1800 else 3000
-            SonarPulse(
-                modifier = Modifier.fillMaxSize(),
-                color = SignalSosEmber,
-                ringCount = 3,
-                durationMillis = pulseSpeed
-            )
-
-            // Inner circle displaying current hops count or search symbol
+            // Live concentric wave showing physical hopping motion
             Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-                    .background(SurfaceNearBlack)
-                    .border(2.dp, SignalSosEmber, CircleShape),
+                modifier = Modifier.size(200.dp),
                 contentAlignment = Alignment.Center
             ) {
-                if (meshState is MeshState.Searching) {
+                // Faster pulsing in flight, slower when searching
+                val pulseSpeed = if (meshState is MeshState.InFlight) 1800 else 3000
+                SonarPulse(
+                    modifier = Modifier.fillMaxSize(),
+                    color = SignalSosEmber,
+                    ringCount = 3,
+                    durationMillis = pulseSpeed
+                )
+
+                // Inner circle placeholder linked to the shared overlay
+                SharedCirclePlaceholder(
+                    screen = "status",
+                    size = 100.dp,
+                    color = SignalSosEmber,
+                    hops = hopCount,
+                    searching = meshState is MeshState.Searching
+                )
+            }
+
+            // Detailed Topology Path representation
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
+                shape = MaterialTheme.shapes.large,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     Text(
-                        text = "📡",
-                        style = MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp)
+                        text = "ACTIVE ROUTING HOP PATH",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = SignalSafeTeal,
+                        letterSpacing = 1.sp
                     )
-                } else {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "HOP",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MutedGray
-                        )
-                        AnimatedContent(
-                            targetState = hopCount,
-                            transitionSpec = {
-                                slideInVertically { height -> height } + fadeIn() togetherWith
-                                slideOutVertically { height -> -height } + fadeOut()
-                            },
-                            label = "hopCountAnimation"
-                        ) { count ->
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (topology.activeHopPath.isEmpty()) {
                             Text(
-                                text = count.toString(),
-                                style = MaterialTheme.typography.labelLarge.copy(fontSize = 36.sp),
-                                color = SignalSosEmber,
-                                fontWeight = FontWeight.Bold
+                                text = "Establishing secure connection bridges...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MutedGray
+                            )
+                        } else {
+                            topology.activeHopPath.forEachIndexed { idx, nodeName ->
+                                val isVictim = nodeName == "victim" || nodeName == "node_A"
+                                val isGateway = nodeName == "gateway" || nodeName == "node_D"
+                                
+                                val chipColor = when {
+                                    isVictim -> SignalSosEmber
+                                    isGateway -> SignalSafeTeal
+                                    else -> OnSurfaceOffWhite
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(chipColor)
+                                    )
+                                    Text(
+                                        text = nodeName.uppercase(),
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                        color = chipColor,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                if (idx < topology.activeHopPath.size - 1) {
+                                    Text(
+                                        text = "➔",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MutedGray
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(color = CanvasNearBlack, thickness = 1.dp)
+
+                    // Realtime connection statistics
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(
+                                text = "PEERS COVERED",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MutedGray
+                            )
+                            Text(
+                                text = String.format("%02d", peerCount),
+                                style = MaterialTheme.typography.labelLarge.copy(fontSize = 16.sp),
+                                color = OnSurfaceOffWhite
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "MAPPED HOPS",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MutedGray
+                            )
+                            Text(
+                                text = String.format("%02d", hopCount),
+                                style = MaterialTheme.typography.labelLarge.copy(fontSize = 16.sp),
+                                color = OnSurfaceOffWhite
                             )
                         }
                     }
                 }
             }
+
+            // Redirect links
+            Text(
+                text = "VIEW DETAILED TOPOLOGY GRAPH",
+                style = MaterialTheme.typography.labelMedium,
+                color = MutedGray,
+                letterSpacing = 2.sp,
+                modifier = Modifier
+                    .clickable {
+                        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                        onNavigate(MeshView)
+                    }
+                    .padding(8.dp)
+            )
+
+            DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Status", onReset = onReset)
         }
-
-        // Detailed Topology Path representation
-        Card(
-            colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
-            shape = MaterialTheme.shapes.large,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "ACTIVE ROUTE PATH",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MutedGray,
-                    letterSpacing = 1.sp
-                )
-
-                // Simple path elements
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    topology.activeHopPath.forEachIndexed { idx, nodeId ->
-                        val node = topology.nodes.find { it.id == nodeId }
-                        if (node != null) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(MaterialTheme.shapes.medium)
-                                    .background(if (node.isVictim) SignalSosEmber else if (node.isGateway) SignalSafeTeal else CanvasNearBlack)
-                                    .border(
-                                        width = 1.dp,
-                                        color = if (node.isVictim) SignalSosEmber else if (node.isGateway) SignalSafeTeal else MutedGray.copy(alpha = 0.3f),
-                                        shape = MaterialTheme.shapes.medium
-                                    )
-                                    .padding(horizontal = 8.dp, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    text = node.label.split(" ").first(),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = if (node.isVictim || node.isGateway) CanvasNearBlack else OnSurfaceOffWhite,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            if (idx < topology.activeHopPath.size - 1) {
-                                Text(
-                                    text = "➔",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MutedGray
-                                )
-                            }
-                        }
-                    }
-                }
-
-                HorizontalDivider(color = CanvasNearBlack, thickness = 1.dp)
-
-                // Realtime connection statistics
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text(
-                            text = "PEERS COVERED",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MutedGray
-                        )
-                        Text(
-                            text = String.format("%02d", peerCount),
-                            style = MaterialTheme.typography.labelLarge.copy(fontSize = 16.sp),
-                            color = OnSurfaceOffWhite
-                        )
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = "MAPPED HOPS",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MutedGray
-                        )
-                        Text(
-                            text = String.format("%02d", hopCount),
-                            style = MaterialTheme.typography.labelLarge.copy(fontSize = 16.sp),
-                            color = OnSurfaceOffWhite
-                        )
-                    }
-                }
-            }
-        }
-
-        // Redirect links
-        Text(
-            text = "VIEW DETAILED TOPOLOGY GRAPH",
-            style = MaterialTheme.typography.labelMedium,
-            color = MutedGray,
-            letterSpacing = 2.sp,
-            modifier = Modifier
-                .clickable {
-                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                    onNavigate(MeshView)
-                }
-                .padding(8.dp)
-        )
-
-        DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Status", onReset = onReset)
     }
 }
 
@@ -1228,163 +1251,165 @@ private fun DeliveredScreenContent(
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(CanvasNearBlack)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
+    var contentVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(150)
+        contentVisible = true
+    }
+
+    AnimatedVisibility(
+        visible = contentVisible,
+        enter = fadeIn(animationSpec = tween(500)) + slideInVertically(animationSpec = tween(500)) { 30 },
+        exit = fadeOut(animationSpec = tween(300))
     ) {
-        // Screen Header
         Column(
+            modifier = modifier
+                .fillMaxSize()
+                .background(CanvasNearBlack)
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(top = 24.dp)
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = "DELIVERY CONFIRMED",
-                style = MaterialTheme.typography.labelLarge,
-                color = SignalSafeTeal,
-                letterSpacing = 4.sp
-            )
-            Text(
-                text = "Responders notified · location sent",
-                style = MaterialTheme.typography.labelSmall,
-                color = MutedGray,
-                letterSpacing = 1.5.sp,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-        }
-
-        // Settling Circle Beacon & Checkmark
-        Box(
-            modifier = Modifier.size(240.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            // Calm expanding teal sonar rings
-            SonarPulse(
-                modifier = Modifier.fillMaxSize(),
-                color = SignalSafeTeal,
-                ringCount = 2,
-                durationMillis = 4000
-            )
-
-            Box(
-                modifier = Modifier
-                    .size(120.dp)
-                    .scale(scaleAnim.value)
-                    .clip(CircleShape)
-                    .background(colorAnim.value),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "✓",
-                    style = MaterialTheme.typography.headlineLarge.copy(fontSize = 48.sp),
-                    color = CanvasNearBlack,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        // Summary Card
-        Card(
-            colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
-            shape = MaterialTheme.shapes.large,
-            modifier = Modifier.fillMaxWidth()
-        ) {
+            // Screen Header
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(top = 24.dp)
             ) {
                 Text(
-                    text = "TRANSMISSION SUMMARY",
+                    text = "DELIVERY CONFIRMED",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = SignalSafeTeal,
+                    letterSpacing = 4.sp
+                )
+                Text(
+                    text = "Responders notified · location sent",
                     style = MaterialTheme.typography.labelSmall,
                     color = MutedGray,
-                    letterSpacing = 1.sp
+                    letterSpacing = 1.5.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            // Settling Circle Beacon & Checkmark
+            Box(
+                modifier = Modifier.size(240.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // Calm expanding teal sonar rings
+                SonarPulse(
+                    modifier = Modifier.fillMaxSize(),
+                    color = SignalSafeTeal,
+                    ringCount = 2,
+                    durationMillis = 4000
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                SharedCirclePlaceholder(
+                    screen = "delivered",
+                    size = 120.dp,
+                    color = SignalSafeTeal
+                )
+            }
+
+            // Summary Card
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
+                shape = MaterialTheme.shapes.large,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Column {
-                        Text(
-                            text = "HOPS TRAVERSED",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MutedGray
-                        )
-                        Text(
-                            text = String.format("%02d", hopCount),
-                            style = MaterialTheme.typography.labelLarge.copy(fontSize = 18.sp),
-                            color = SignalSafeTeal,
-                            fontWeight = FontWeight.Bold
-                        )
+                    Text(
+                        text = "TRANSMISSION SUMMARY",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MutedGray,
+                        letterSpacing = 1.sp
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(
+                                text = "HOPS TRAVERSED",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MutedGray
+                            )
+                            Text(
+                                text = String.format("%02d", hopCount),
+                                style = MaterialTheme.typography.labelLarge.copy(fontSize = 18.sp),
+                                color = SignalSafeTeal,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "PEERS ENGAGED",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MutedGray
+                            )
+                            Text(
+                                text = String.format("%02d", peerCount),
+                                style = MaterialTheme.typography.labelLarge.copy(fontSize = 18.sp),
+                                color = SignalSafeTeal,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = "PEERS ENGAGED",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MutedGray
-                        )
-                        Text(
-                            text = String.format("%02d", peerCount),
-                            style = MaterialTheme.typography.labelLarge.copy(fontSize = 18.sp),
-                            color = SignalSafeTeal,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+
+                    HorizontalDivider(color = CanvasNearBlack, thickness = 1.dp)
+
+                    Text(
+                        text = "Your SOS packet successfully reached an internet-connected Gateway node. SMS alert dispatched to responders with active location coordinates.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = OnSurfaceOffWhite
+                    )
+                }
+            }
+
+            // Action Buttons
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Button(
+                    onClick = {
+                        view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                        onReset()
+                        onNavigate(Home)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = SignalSafeTeal),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    modifier = Modifier.height(48.dp).fillMaxWidth(0.6f)
+                ) {
+                    Text(
+                        text = "DONE",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = CanvasNearBlack,
+                        letterSpacing = 2.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
-                HorizontalDivider(color = CanvasNearBlack, thickness = 1.dp)
-
                 Text(
-                    text = "Your SOS packet successfully reached an internet-connected Gateway node. SMS alert dispatched to responders with active location coordinates.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = OnSurfaceOffWhite
-                )
-            }
-        }
-
-        // Action Buttons
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Button(
-                onClick = {
-                    view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                    onReset()
-                    onNavigate(Home)
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = SignalSafeTeal),
-                shape = MaterialTheme.shapes.extraLarge,
-                modifier = Modifier.height(48.dp).fillMaxWidth(0.6f)
-            ) {
-                Text(
-                    text = "DONE",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = CanvasNearBlack,
+                    text = "VIEW TRANSMISSION ROUTE",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MutedGray,
                     letterSpacing = 2.sp,
-                    fontWeight = FontWeight.Bold
+                    modifier = Modifier
+                        .clickable {
+                            view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                            onNavigate(MeshView)
+                        }
+                        .padding(8.dp)
                 )
             }
 
-            Text(
-                text = "VIEW TRANSMISSION ROUTE",
-                style = MaterialTheme.typography.labelMedium,
-                color = MutedGray,
-                letterSpacing = 2.sp,
-                modifier = Modifier
-                    .clickable {
-                        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                        onNavigate(MeshView)
-                    }
-                    .padding(8.dp)
-            )
+            DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Delivered", onReset = onReset)
         }
-
-        DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Delivered", onReset = onReset)
     }
 }
 
