@@ -148,24 +148,9 @@ fun FloatingSharedCircle(
     if (!state.isVisible) return
 
     // Spring physics configuration
-    val springSpec = remember {
-        spring<Float>(
-            stiffness = Spring.StiffnessLow,
-            dampingRatio = Spring.DampingRatioLowBouncy
-        )
-    }
-    val dpSpringSpec = remember {
-        spring<Dp>(
-            stiffness = Spring.StiffnessLow,
-            dampingRatio = Spring.DampingRatioLowBouncy
-        )
-    }
-    val colorSpringSpec = remember {
-        spring<Color>(
-            stiffness = Spring.StiffnessLow,
-            dampingRatio = Spring.DampingRatioNoBouncy
-        )
-    }
+    val springSpec = remember { MotionTokens.PositionSpring }
+    val dpSpringSpec = remember { MotionTokens.DpPositionSpring }
+    val colorSpringSpec = remember { MotionTokens.ColorSpring }
 
     // Animate coordinates
     val animX by animateFloatAsState(targetValue = state.targetOffset.x, animationSpec = if (isReducedMotion) snap() else springSpec, label = "x")
@@ -173,12 +158,7 @@ fun FloatingSharedCircle(
     val animSize by animateDpAsState(targetValue = state.targetSize, animationSpec = if (isReducedMotion) snap() else dpSpringSpec, label = "size")
     val animColor by animateColorAsState(targetValue = state.targetColor, animationSpec = if (isReducedMotion) snap() else colorSpringSpec, label = "color")
 
-    val scaleSpringSpec = remember {
-        spring<Float>(
-            stiffness = Spring.StiffnessHigh,
-            dampingRatio = Spring.DampingRatioNoBouncy
-        )
-    }
+    val scaleSpringSpec = remember { MotionTokens.StiffSpring }
     val animScale by animateFloatAsState(
         targetValue = state.scale,
         animationSpec = if (isReducedMotion) snap() else scaleSpringSpec,

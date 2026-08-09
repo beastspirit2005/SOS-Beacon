@@ -22,6 +22,20 @@ object MotionTokens {
         dampingRatio = Spring.DampingRatioNoBouncy,
         stiffness = Spring.StiffnessHigh
     )
+
+    // Unified spring specs for layout positioning (e.g. FloatingSharedCircle)
+    val PositionSpring = spring<Float>(
+        dampingRatio = Spring.DampingRatioLowBouncy,
+        stiffness = Spring.StiffnessLow
+    )
+    val DpPositionSpring = spring<androidx.compose.ui.unit.Dp>(
+        dampingRatio = Spring.DampingRatioLowBouncy,
+        stiffness = Spring.StiffnessLow
+    )
+    val ColorSpring = spring<androidx.compose.ui.graphics.Color>(
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = Spring.StiffnessLow
+    )
 }
 
 @Composable

@@ -21,6 +21,9 @@ import com.example.meshsosrelay.theme.CanvasNearBlack
 import com.example.meshsosrelay.theme.SignalSafeTeal
 import com.example.meshsosrelay.theme.SignalSosEmber
 import com.example.meshsosrelay.theme.SurfaceNearBlack
+import com.example.meshsosrelay.ui.premiumElevation
+import com.example.meshsosrelay.ui.ElevationLevel
+import com.example.meshsosrelay.ui.premiumPress
 
 class PermissionManager(private val context: Context) {
 
@@ -92,17 +95,16 @@ fun PermissionStatusCard(
     val missing = remember { permissionManager.missingPermissions() }
 
     if (missing.isNotEmpty()) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
-            shape = RoundedCornerShape(12.dp),
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp)
+                .premiumElevation(ElevationLevel.Card, RoundedCornerShape(12.dp))
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
+                    .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -123,10 +125,11 @@ fun PermissionStatusCard(
                 }
 
                 Button(
-                    onClick = onRequestPermissions,
+                    onClick = {},
                     colors = ButtonDefaults.buttonColors(containerColor = SignalSafeTeal),
                     shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.premiumPress(onRequestPermissions)
                 ) {
                     Text(
                         text = "Grant",

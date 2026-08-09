@@ -106,14 +106,14 @@ fun TopologyCanvas(
         )
     }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
-        shape = RoundedCornerShape(16.dp),
-        modifier = modifier.fillMaxWidth()
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .premiumElevation(ElevationLevel.Card, RoundedCornerShape(16.dp))
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
