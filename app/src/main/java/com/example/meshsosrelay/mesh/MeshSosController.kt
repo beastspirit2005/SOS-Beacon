@@ -20,12 +20,11 @@ import com.example.meshsosrelay.api.IngestRequest
 import com.example.meshsosrelay.api.SignatureUtils
 import com.example.meshsosrelay.contract.SosPacket
 import com.example.meshsosrelay.sensors.GpsLocationManager
-import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.json.Json
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
+import retrofit2.converter.kotlinx.serialization.KotlinSerializationConverterFactory
 import java.util.UUID
 
 /**
@@ -51,12 +50,12 @@ class MeshSosController(
     private val beaconApi: BeaconApi by lazy {
         val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
         val client = OkHttpClient.Builder().addInterceptor(logging).build()
-        val json = Json { ignoreUnknownKeys = true }
+        val json = Json { ignoreUnknownKeys = true; isLenient = true }
         Retrofit.Builder()
             // 10.0.2.2 routes from the Android emulator to Windows localhost
-            .baseUrl("http://10.0.2.2:8000")
+            .baseUrl("http://10.0.2.2:8000/")
             .client(client)
-            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .addConverterFactory(KotlinSerializationConverterFactory.create(json))
             .build()
             .create(BeaconApi::class.java)
     }
