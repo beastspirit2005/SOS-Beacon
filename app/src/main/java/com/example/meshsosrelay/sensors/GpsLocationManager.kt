@@ -23,15 +23,9 @@ class GpsLocationManager(private val context: Context) {
     private val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
     private val permissionManager = PermissionManager(context)
 
-    // Default mock location (San Francisco / Hackathon base) if GPS not acquired yet
-    private val _currentLocation = MutableStateFlow(
-        LocationData(
-            lat = 37.7749,
-            lon = -122.4194,
-            accuracy = 10.0f
-        )
-    )
-    val currentLocation: StateFlow<LocationData> = _currentLocation.asStateFlow()
+    // Null until real hardware GPS lock is acquired
+    private val _currentLocation = MutableStateFlow<LocationData?>(null)
+    val currentLocation: StateFlow<LocationData?> = _currentLocation.asStateFlow()
 
     private val locationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {

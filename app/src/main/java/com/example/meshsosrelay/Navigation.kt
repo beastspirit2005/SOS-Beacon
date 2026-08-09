@@ -61,7 +61,7 @@ fun MainNavigation() {
   val gpsManager = remember { com.example.meshsosrelay.sensors.GpsLocationManager(context) }
 
   // Runtime Injection: Real MeshSosController with GPS support
-  val controller = remember { com.example.meshsosrelay.mesh.MeshSosController(gpsLocationManager = gpsManager) }
+  val controller = remember { com.example.meshsosrelay.mesh.MeshSosController(context = context, gpsLocationManager = gpsManager) }
 
   // Clean up the coroutine scope when composition leaves
   DisposableEffect(Unit) {

@@ -36,6 +36,7 @@ import java.util.UUID
  *                           Falls back to a safe default if null or location not yet acquired.
  */
 class MeshSosController(
+    private val context: android.content.Context,
     private val gpsLocationManager: GpsLocationManager? = null
 ) : SosController {
 
@@ -60,6 +61,9 @@ class MeshSosController(
             .build()
             .create(BeaconApi::class.java)
     }
+
+    private val packetStore = PacketStore(context)
+    private val nearbyMeshManager = NearbyMeshManager(context, packetStore)
 
     // Real Flow<MeshTopology> from the mesh layer
     private val _meshTopology = MutableStateFlow(
@@ -121,11 +125,18 @@ class MeshSosController(
                 val originId = "victim-${UUID.randomUUID().toString().take(4)}"
                 val createdAt = System.currentTimeMillis()
 
-                // M-5 fix: Use real GPS coordinates. Falls back to safe defaults if unavailable.
+                // M-5 fix: Use real GPS coordinates. Strictly required.
                 val location = gpsLocationManager?.currentLocation?.value
-                val lat = location?.lat ?: 28.6139
-                val lon = location?.lon ?: 77.2090
-                val acc = location?.accuracy ?: 5.0f
+                if (location == null) {
+                    logInfo("MeshSosController", "Aborting transmission: No hardware GPS location acquired yet.")
+                    _deliveryState.value = DeliveryState.Idle
+                    _meshState.value = MeshState.Idle
+                    return@launch
+                }
+                
+                val lat = location.lat
+                val lon = location.lon
+                val acc = location.accuracy
 
                 val signature = SignatureUtils.computeSignature(msgId, originId, createdAt, draft.payload)
 
@@ -159,6 +170,10 @@ class MeshSosController(
                     logInfo("MeshSosController", "Backend rejected SOS: ${response.code()} ${response.errorBody()?.string()}")
                     _deliveryState.value = DeliveryState.Idle
                 }
+
+                // NEW: Broadcast via P2P Mesh (Handles offline persistence and deduplication)
+                nearbyMeshManager.broadcastPacket(packet)
+
             } catch (e: Exception) {
                 logInfo("MeshSosController", "Network exception hitting backend: ${e.message}")
                 _deliveryState.value = DeliveryState.Idle
