@@ -12,6 +12,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -48,6 +49,71 @@ import kotlinx.coroutines.delay
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.composed
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
+
+enum class ElevationLevel {
+    Canvas, Card, Raised
+}
+
+fun Modifier.premiumElevation(
+    level: ElevationLevel,
+    shape: androidx.compose.ui.graphics.Shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+): Modifier = this.then(
+    when (level) {
+        ElevationLevel.Canvas -> Modifier.background(CanvasNearBlack)
+        ElevationLevel.Card -> Modifier
+            .shadow(elevation = 2.dp, shape = shape, clip = false)
+            .background(SurfaceNearBlack, shape)
+            .border(width = 0.5.dp, color = OnSurfaceOffWhite.copy(alpha = 0.08f), shape = shape)
+        ElevationLevel.Raised -> Modifier
+            .shadow(elevation = 6.dp, shape = shape, clip = false)
+            .background(Color(0xFF1B1E23), shape)
+            .border(width = 0.5.dp, color = OnSurfaceOffWhite.copy(alpha = 0.15f), shape = shape)
+    }
+)
+
+fun Modifier.premiumPress(
+    onClick: () -> Unit
+): Modifier = this.composed {
+    val isReducedMotion = isReducedMotionEnabled()
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed && !isReducedMotion) 0.98f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessHigh
+        ),
+        label = "pressScale"
+    )
+    
+    val alpha by animateFloatAsState(
+        targetValue = if (isPressed && !isReducedMotion) 0.9f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessHigh
+        ),
+        label = "pressAlpha"
+    )
+    
+    this
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+            this.alpha = alpha
+        }
+        .clickable(
+            interactionSource = interactionSource,
+            indication = null,
+            onClick = onClick
+        )
+}
+
 
 class SharedCircleState {
     var isVisible by mutableStateOf(false)
@@ -169,14 +235,13 @@ fun DebugNavigationFooter(
 ) {
     if (!IS_DEBUG_MENU_ENABLED) return
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
-        shape = MaterialTheme.shapes.medium,
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 16.dp)
+            .premiumElevation(ElevationLevel.Card, MaterialTheme.shapes.medium)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = "DEBUG NAVIGATION MENU (CURRENT: $currentRoute)",
                 style = MaterialTheme.typography.labelSmall,
@@ -202,7 +267,7 @@ fun DebugNavigationFooter(
                             .weight(1f)
                             .clip(MaterialTheme.shapes.small)
                             .background(if (currentRoute == label) SignalSafeTeal else CanvasNearBlack)
-                            .clickable { onNavigate(key) }
+                            .premiumPress { onNavigate(key) }
                             .padding(vertical = 8.dp, horizontal = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -221,9 +286,11 @@ fun DebugNavigationFooter(
             if (onReset != null) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(
-                    onClick = onReset,
+                    onClick = {},
                     colors = ButtonDefaults.buttonColors(containerColor = SignalSosEmber),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .premiumPress(onReset),
                     shape = MaterialTheme.shapes.small
                 ) {
                     Text("Reset Fake Controller Timeline", color = CanvasNearBlack, style = MaterialTheme.typography.labelMedium)
@@ -732,15 +799,16 @@ private fun HomeScreenContent(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     OutlinedButton(
-                        onClick = {
-                            view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                            onReset()
-                        },
+                        onClick = {},
                         border = BorderStroke(1.dp, MutedGray.copy(alpha = 0.3f)),
                         shape = MaterialTheme.shapes.extraLarge,
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = OnSurfaceOffWhite),
                         modifier = Modifier
                             .height(48.dp)
+                            .premiumPress {
+                                view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                                onReset()
+                            }
                             .semantics { contentDescription = "Mark status as safe and cancel broadcast" }
                     ) {
                         Text(
@@ -757,7 +825,7 @@ private fun HomeScreenContent(
                         color = MutedGray,
                         letterSpacing = 2.sp,
                         modifier = Modifier
-                            .clickable {
+                            .premiumPress {
                                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                                 onNavigate(ReceivedAlerts)
                             }
@@ -767,16 +835,20 @@ private fun HomeScreenContent(
                 }
 
                 // Volunteer Mode Toggle Card
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
-                    shape = MaterialTheme.shapes.medium,
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp)
+                        .premiumElevation(ElevationLevel.Card, MaterialTheme.shapes.medium)
+                        .premiumPress {
+                            val isChecked = !volunteerMode
+                            view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                            onVolunteerModeChange(isChecked)
+                        }
                 ) {
                     Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -798,10 +870,7 @@ private fun HomeScreenContent(
                             }
                             Switch(
                                 checked = volunteerMode,
-                                onCheckedChange = { isChecked ->
-                                    view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                                    onVolunteerModeChange(isChecked)
-                                },
+                                onCheckedChange = null,
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = CanvasNearBlack,
                                     checkedTrackColor = SignalSafeTeal,
@@ -1034,11 +1103,14 @@ private fun SendingScreenContent(
                     )
 
                     OutlinedButton(
-                        onClick = onCancel,
+                        onClick = {},
                         border = BorderStroke(1.dp, SignalSosEmber.copy(alpha = 0.5f)),
                         shape = MaterialTheme.shapes.extraLarge,
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = SignalSosEmber),
-                        modifier = Modifier.height(54.dp).width(200.dp)
+                        modifier = Modifier
+                            .height(54.dp)
+                            .width(200.dp)
+                            .premiumPress(onCancel)
                     ) {
                         Text(
                             text = "CANCEL",
@@ -1168,16 +1240,15 @@ private fun StatusScreenContent(
             }
 
             // Detailed Topology Path representation
-            Card(
-                colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
-                shape = MaterialTheme.shapes.large,
+            // Detailed Topology Path representation
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp)
+                    .premiumElevation(ElevationLevel.Card, MaterialTheme.shapes.large)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
                         text = "ACTIVE ROUTING HOP PATH",
@@ -1279,7 +1350,7 @@ private fun StatusScreenContent(
                 color = MutedGray,
                 letterSpacing = 2.sp,
                 modifier = Modifier
-                    .clickable {
+                    .premiumPress {
                         view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                         onNavigate(MeshView)
                     }
@@ -1410,10 +1481,11 @@ private fun DeliveredScreenContent(
             }
 
             // Summary Card
-            Card(
-                colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
-                shape = MaterialTheme.shapes.large,
-                modifier = Modifier.fillMaxWidth()
+            // Summary Card
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .premiumElevation(ElevationLevel.Card, MaterialTheme.shapes.large)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -1475,14 +1547,17 @@ private fun DeliveredScreenContent(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Button(
-                    onClick = {
-                        view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                        onReset()
-                        onNavigate(Home)
-                    },
+                    onClick = {},
                     colors = ButtonDefaults.buttonColors(containerColor = SignalSafeTeal),
                     shape = MaterialTheme.shapes.extraLarge,
-                    modifier = Modifier.height(48.dp).fillMaxWidth(0.6f)
+                    modifier = Modifier
+                        .height(48.dp)
+                        .fillMaxWidth(0.6f)
+                        .premiumPress {
+                            view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                            onReset()
+                            onNavigate(Home)
+                        }
                 ) {
                     Text(
                         text = "DONE",
@@ -1499,7 +1574,7 @@ private fun DeliveredScreenContent(
                     color = MutedGray,
                     letterSpacing = 2.sp,
                     modifier = Modifier
-                        .clickable {
+                        .premiumPress {
                             view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                             onNavigate(MeshView)
                         }
@@ -1552,6 +1627,21 @@ private fun ReceivedAlertsScreenContent(
         ),
         label = "pulseAlpha"
     )
+
+    val isReducedMotion = isReducedMotionEnabled()
+    val dotScale by if (isReducedMotion) {
+        remember { mutableStateOf(1f) }
+    } else {
+        infiniteTransition.animateFloat(
+            initialValue = 0.8f,
+            targetValue = 1.2f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1200, easing = EaseInOutSine),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "pulseScale"
+        )
+    }
 
     Column(
         modifier = modifier
@@ -1717,21 +1807,39 @@ private fun ReceivedAlertsScreenContent(
                 }
 
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(sortedAlerts) { alert ->
+                    itemsIndexed(sortedAlerts) { index, alert ->
                         val priorityColor = getPriorityColor(alert.priority)
                         val priorityLabel = getPriorityLabel(alert.priority)
 
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = SurfaceNearBlack),
-                            shape = MaterialTheme.shapes.large,
-                            modifier = Modifier.fillMaxWidth()
+                        // Staggered entry animation: offset and alpha
+                        val animProgress = remember { androidx.compose.animation.core.Animatable(0f) }
+                        LaunchedEffect(Unit) {
+                            if (isReducedMotion) {
+                                animProgress.snapTo(1f)
+                            } else {
+                                delay(index * 60L)
+                                animProgress.animateTo(
+                                    targetValue = 1f,
+                                    animationSpec = tween(durationMillis = 400, easing = EaseOutQuad)
+                                )
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .graphicsLayer {
+                                    alpha = animProgress.value
+                                    translationY = (1f - animProgress.value) * 30.dp.toPx()
+                                }
+                                .premiumElevation(ElevationLevel.Card, MaterialTheme.shapes.large)
                         ) {
                             Column(
                                 modifier = Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 // Header: Priority Badge + Location
                                 Row(
@@ -1800,11 +1908,15 @@ private fun ReceivedAlertsScreenContent(
                                 // Active Relaying status dot
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Box(
                                         modifier = Modifier
                                             .size(6.dp)
+                                            .graphicsLayer {
+                                                scaleX = dotScale
+                                                scaleY = dotScale
+                                            }
                                             .clip(CircleShape)
                                             .background(SignalSafeTeal.copy(alpha = dotAlpha))
                                     )
