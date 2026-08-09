@@ -26,9 +26,8 @@ class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
-    // L-3 fix: Start the foreground service so sensors & mesh relaying
-    // continue running when the app is sent to the background.
-    SosForegroundService.startService(this)
+    // L-3 fix: Service start moved to Screens.kt (after permission is granted)
+    // to prevent SecurityException on startup.
 
     enableEdgeToEdge()
     setContent {

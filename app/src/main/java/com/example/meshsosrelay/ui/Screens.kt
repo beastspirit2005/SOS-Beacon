@@ -432,7 +432,21 @@ fun HomeScreen(
     val deviceRole by controller.deviceRole.collectAsState()
     val soundOn by controller.soundEnabled.collectAsState()
 
-    var permissionGranted by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val permissionManager = remember { PermissionManager(context) }
+    var permissionGranted by remember { mutableStateOf(permissionManager.missingPermissions().isEmpty()) }
+
+    // H-1 fix: Real Android runtime permission request launcher
+    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+    ) { _ ->
+        if (permissionManager.missingPermissions().isEmpty()) {
+            permissionGranted = true
+            // Start the foreground service ONLY after permissions are granted
+            // This prevents the SecurityException crash on startup
+            SosForegroundService.startService(context)
+        }
+    }
 
     HomeScreenContent(
         meshState = meshState,
@@ -440,7 +454,23 @@ fun HomeScreen(
         deviceRole = deviceRole,
         soundOn = soundOn,
         permissionGranted = permissionGranted,
-        onPermissionGranted = { permissionGranted = true },
+        onPermissionGranted = {
+            // Launch the real permission flow
+            val perms = mutableListOf(
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+                android.Manifest.permission.RECORD_AUDIO,
+                android.Manifest.permission.SEND_SMS
+            )
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                perms.add(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                perms.add(android.Manifest.permission.BLUETOOTH_SCAN)
+                perms.add(android.Manifest.permission.BLUETOOTH_CONNECT)
+                perms.add(android.Manifest.permission.BLUETOOTH_ADVERTISE)
+            }
+            permissionLauncher.launch(perms.toTypedArray())
+        },
         onCycleDeviceRole = { controller.cycleDeviceRole() },
         onToggleSound = { controller.soundEnabled.value = !soundOn },
         onTriggerSos = { controller.trigger(SosDraft("critical", "Emergency manual SOS trigger from HomeScreen")) },
