@@ -127,7 +127,7 @@ class MeshSosController(
                 val lon = location?.lon ?: 77.2090
                 val acc = location?.accuracy ?: 5.0f
 
-                val sig = SignatureUtils.computeSignature(msgId, originId, createdAt, draft.payload)
+                val signature = SignatureUtils.computeSignature(msgId, originId, createdAt, draft.payload)
 
                 val packet = SosPacket(
                     msg_id = msgId,
@@ -142,7 +142,7 @@ class MeshSosController(
                     ttl = 3,
                     hops = 2,
                     payload = draft.payload,
-                    sig = sig,
+                    signature = signature,
                     priority = if (draft.severity == "critical") 5 else 3
                 )
 

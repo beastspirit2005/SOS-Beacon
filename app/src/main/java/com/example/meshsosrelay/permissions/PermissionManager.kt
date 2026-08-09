@@ -85,6 +85,26 @@ class PermissionManager(private val context: Context) {
         if (!hasBluetoothPermission()) missing.add("Bluetooth")
         return missing
     }
+    fun getMissingManifestPermissions(): Array<String> {
+        val missing = mutableListOf<String>()
+        if (!hasLocationPermission()) missing.add(android.Manifest.permission.ACCESS_FINE_LOCATION)
+        if (!hasAudioPermission()) missing.add(android.Manifest.permission.RECORD_AUDIO)
+        if (!hasSmsPermission()) missing.add(android.Manifest.permission.SEND_SMS)
+        if (!hasNotificationPermission() && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            missing.add(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+        if (!hasBluetoothPermission()) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                missing.add(android.Manifest.permission.BLUETOOTH_SCAN)
+                missing.add(android.Manifest.permission.BLUETOOTH_CONNECT)
+                missing.add(android.Manifest.permission.BLUETOOTH_ADVERTISE)
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                missing.add(android.Manifest.permission.NEARBY_WIFI_DEVICES)
+            }
+        }
+        return missing.toTypedArray()
+    }
 }
 
 @Composable

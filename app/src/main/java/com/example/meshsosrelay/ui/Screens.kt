@@ -459,21 +459,14 @@ fun HomeScreen(
         soundOn = soundOn,
         permissionGranted = permissionGranted,
         onPermissionGranted = {
-            // Launch the real permission flow
-            val perms = mutableListOf(
-                android.Manifest.permission.ACCESS_FINE_LOCATION,
-                android.Manifest.permission.RECORD_AUDIO,
-                android.Manifest.permission.SEND_SMS
-            )
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                perms.add(android.Manifest.permission.POST_NOTIFICATIONS)
+            // Launch the real permission flow dynamically based on what is actually missing
+            val missing = permissionManager.getMissingManifestPermissions()
+            if (missing.isNotEmpty()) {
+                permissionLauncher.launch(missing)
+            } else {
+                permissionGranted = true
+                SosForegroundService.startService(context)
             }
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                perms.add(android.Manifest.permission.BLUETOOTH_SCAN)
-                perms.add(android.Manifest.permission.BLUETOOTH_CONNECT)
-                perms.add(android.Manifest.permission.BLUETOOTH_ADVERTISE)
-            }
-            permissionLauncher.launch(perms.toTypedArray())
         },
         onCycleDeviceRole = { controller.cycleDeviceRole() },
         onToggleSound = { controller.soundEnabled.value = !soundOn },
@@ -819,7 +812,6 @@ private fun HomeScreenContent(
                                         },
                                         onTap = {
                                             view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                                            onTriggerSos()
                                             onNavigate(Sending)
                                         }
                                     )
@@ -997,11 +989,12 @@ fun SendingScreen(
     val view = LocalView.current
 
     var remainingMillis by remember { mutableStateOf(5000) }
+    var isCancelled by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         var lastTick = 5
         val startTime = System.currentTimeMillis()
-        while (remainingMillis > 0) {
+        while (remainingMillis > 0 && !isCancelled) {
             val elapsed = System.currentTimeMillis() - startTime
             val remaining = (5000 - elapsed).coerceAtLeast(0).toInt()
             remainingMillis = remaining
@@ -1014,7 +1007,11 @@ fun SendingScreen(
             
             delay(16)
         }
-        onNavigate(Status)
+        
+        if (!isCancelled) {
+            controller.trigger(com.example.meshsosrelay.contract.SosDraft("critical", "Emergency manual SOS trigger from app"))
+            onNavigate(Status)
+        }
     }
 
     LaunchedEffect(deliveryState) {
@@ -1026,6 +1023,7 @@ fun SendingScreen(
     SendingScreenContent(
         remainingMillis = remainingMillis,
         onCancel = {
+            isCancelled = true
             controller.reset()
             onNavigate(Home)
         },
@@ -2430,7 +2428,7 @@ fun ReceivedAlertsScreenPreview() {
             ttl = 4,
             hops = 2,
             payload = "Severe impact detected.",
-            sig = "fake_sig_1",
+            signature = "fake_sig_1",
             priority = 5
         ),
         SosPacket(
@@ -2446,7 +2444,7 @@ fun ReceivedAlertsScreenPreview() {
             payload = "Sprained ankle on trail.",
             ttl = 5,
             hops = 1,
-            sig = "fake_sig_2",
+            signature = "fake_sig_2",
             priority = 4
         )
     )

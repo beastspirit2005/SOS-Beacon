@@ -60,7 +60,7 @@ class FakeSosController : SosController {
                 ttl = 4,
                 hops = 2,
                 payload = "Severe impact detected. Stillness timeout. Request assistance.",
-                sig = "fake_sig_1",
+                signature = "fake_sig_1",
                 priority = 5
             ),
             SosPacket(
@@ -76,7 +76,7 @@ class FakeSosController : SosController {
                 payload = "Sprained ankle on trail. Slowly moving towards base camp.",
                 ttl = 5,
                 hops = 1,
-                sig = "fake_sig_2",
+                signature = "fake_sig_2",
                 priority = 4
             ),
             SosPacket(
@@ -92,7 +92,7 @@ class FakeSosController : SosController {
                 payload = "All clear. Arrived at base camp. Relaying status.",
                 ttl = 6,
                 hops = 0,
-                sig = "fake_sig_3",
+                signature = "fake_sig_3",
                 priority = 3
             )
         )
@@ -200,7 +200,7 @@ class FakeSosController : SosController {
                 ttl = 4,
                 hops = 2,
                 payload = "Severe impact detected. Stillness timeout. Request assistance.",
-                sig = "fake_sig_1",
+                signature = "fake_sig_1",
                 priority = 5
             ),
             SosPacket(
@@ -216,7 +216,7 @@ class FakeSosController : SosController {
                 payload = "Sprained ankle on trail. Slowly moving towards base camp.",
                 ttl = 5,
                 hops = 1,
-                sig = "fake_sig_2",
+                signature = "fake_sig_2",
                 priority = 4
             ),
             SosPacket(
@@ -232,7 +232,7 @@ class FakeSosController : SosController {
                 payload = "All clear. Arrived at base camp. Relaying status.",
                 ttl = 6,
                 hops = 0,
-                sig = "fake_sig_3",
+                signature = "fake_sig_3",
                 priority = 3
             )
         )

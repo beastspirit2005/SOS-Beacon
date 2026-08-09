@@ -89,4 +89,7 @@ dependencies {
   implementation(libs.retrofit2.core)
   implementation(libs.retrofit2.kotlinx.serialization.converter)
   implementation(libs.okhttp3.logging.interceptor)
+
+  // Nearby Connections (Offline P2P Mesh)
+  implementation("com.google.android.gms:play-services-nearby:19.0.0")
 }

@@ -23,7 +23,7 @@ data class SosPacket(
     val ttl: Int,
     val hops: Int,
     val payload: String,
-    val sig: String,
+    val signature: String,
     val priority: Int = 3 // 1..5, Packet Priority Engine; default 3 = manual SOS
 )
 
