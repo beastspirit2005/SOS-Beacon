@@ -290,11 +290,10 @@ fun DebugNavigationFooter(
             if (onReset != null) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(
-                    onClick = {},
+                    onClick = onReset,
                     colors = ButtonDefaults.buttonColors(containerColor = SignalSosEmber),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .premiumPress(onReset),
+                        .fillMaxWidth(),
                     shape = MaterialTheme.shapes.small
                 ) {
                     Text("Reset Fake Controller Timeline", color = CanvasNearBlack, style = MaterialTheme.typography.labelMedium)
@@ -828,16 +827,15 @@ private fun HomeScreenContent(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     OutlinedButton(
-                        onClick = {},
+                        onClick = {
+                            view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                            onReset()
+                        },
                         border = BorderStroke(1.dp, MutedGray.copy(alpha = 0.3f)),
                         shape = MaterialTheme.shapes.extraLarge,
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = OnSurfaceOffWhite),
                         modifier = Modifier
                             .height(48.dp)
-                            .premiumPress {
-                                view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                                onReset()
-                            }
                             .semantics { contentDescription = "Mark status as safe and cancel broadcast" }
                     ) {
                         Text(
@@ -1141,14 +1139,13 @@ private fun SendingScreenContent(
                     )
 
                     OutlinedButton(
-                        onClick = {},
+                        onClick = onCancel,
                         border = BorderStroke(1.dp, SignalSosEmber.copy(alpha = 0.5f)),
                         shape = MaterialTheme.shapes.extraLarge,
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = SignalSosEmber),
                         modifier = Modifier
                             .height(54.dp)
                             .width(200.dp)
-                            .premiumPress(onCancel)
                     ) {
                         Text(
                             text = "CANCEL",
@@ -1591,17 +1588,16 @@ private fun DeliveredScreenContent(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Button(
-                    onClick = {},
+                    onClick = {
+                        view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                        onReset()
+                        onNavigate(Home)
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = SignalSafeTeal),
                     shape = MaterialTheme.shapes.extraLarge,
                     modifier = Modifier
                         .height(48.dp)
                         .fillMaxWidth(0.6f)
-                        .premiumPress {
-                            view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                            onReset()
-                            onNavigate(Home)
-                        }
                 ) {
                     Text(
                         text = "DONE",
