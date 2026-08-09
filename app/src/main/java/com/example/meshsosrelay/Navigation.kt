@@ -70,8 +70,7 @@ fun MainNavigation() {
 
   val sharedCircleState = remember { SharedCircleState() }
   
-  // Detect reduced motion settings
-  val context = LocalContext.current
+  // Detect reduced motion settings (reuses context declared above)
   val isReducedMotion = remember(context) {
     val transitionScale = android.provider.Settings.Global.getFloat(
       context.contentResolver,

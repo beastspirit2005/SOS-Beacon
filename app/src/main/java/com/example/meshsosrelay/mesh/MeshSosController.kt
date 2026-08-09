@@ -15,7 +15,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.cancel
 import com.example.meshsosrelay.api.BeaconApi
 import com.example.meshsosrelay.api.IngestRequest
 import com.example.meshsosrelay.api.SignatureUtils
