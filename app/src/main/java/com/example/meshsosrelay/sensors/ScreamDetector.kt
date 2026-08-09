@@ -117,7 +117,15 @@ class ScreamDetector(
         _isListening.value = false
         recordingJob?.cancel()
         recordingJob = null
-        job.cancel()  // C-5 fix: cancel the supervisor job to clean up the scope
+        // Note: we do NOT cancel the SupervisorJob here — that would
+        // make the scope permanently dead and prevent start() from
+        // working again. The job is only killed via destroy().
+    }
+
+    /** Final cleanup — call when the ScreamDetector will never be reused. */
+    fun destroy() {
+        stop()
+        job.cancel()
     }
 
     fun simulateScream(db: Float = 85f) {

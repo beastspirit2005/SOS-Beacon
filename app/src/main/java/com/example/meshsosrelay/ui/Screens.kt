@@ -189,13 +189,17 @@ fun SharedCirclePlaceholder(
 
 // Extension properties and methods to support fake/debug fields on the seam interface
 val SosController.volunteerMode: kotlinx.coroutines.flow.MutableStateFlow<Boolean>
-    get() = (this as? FakeSosController)?.volunteerMode ?: kotlinx.coroutines.flow.MutableStateFlow(false)
+    get() = (this as? FakeSosController)?.volunteerMode
+        ?: (this as? com.example.meshsosrelay.mesh.MeshSosController)?.volunteerMode
+        ?: kotlinx.coroutines.flow.MutableStateFlow(false)
 
 val SosController.deviceRole: kotlinx.coroutines.flow.MutableStateFlow<String>
     get() = (this as? FakeSosController)?.deviceRole ?: (this as? com.example.meshsosrelay.mesh.MeshSosController)?.deviceRole ?: kotlinx.coroutines.flow.MutableStateFlow("observer")
 
 val SosController.soundEnabled: kotlinx.coroutines.flow.MutableStateFlow<Boolean>
-    get() = (this as? FakeSosController)?.soundEnabled ?: kotlinx.coroutines.flow.MutableStateFlow(false)
+    get() = (this as? FakeSosController)?.soundEnabled
+        ?: (this as? com.example.meshsosrelay.mesh.MeshSosController)?.soundEnabled
+        ?: kotlinx.coroutines.flow.MutableStateFlow(false)
 
 val SosController.meshTopology: kotlinx.coroutines.flow.StateFlow<MeshTopology>
     get() = (this as? FakeSosController)?.meshTopology 

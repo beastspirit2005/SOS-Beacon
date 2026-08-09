@@ -6,7 +6,7 @@ import com.example.meshsosrelay.sensors.ScreamEvent
 data class ConfidenceScore(
     val confidence: Float,       // 0.0f to 1.0f
     val severity: String,         // "info" | "warn" | "critical"
-    val triggerType: String       // "manual" | "fall_detection" | "scream_detection" | "dead_man_timer"
+    val triggerType: String       // "manual" | "fall" | "scream" | "missed_checkin"
 )
 
 object ConfidenceEngine {

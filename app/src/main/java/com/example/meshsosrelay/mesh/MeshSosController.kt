@@ -81,6 +81,8 @@ class MeshSosController(
     val meshTopology: StateFlow<MeshTopology> = _meshTopology.asStateFlow()
 
     val deviceRole = MutableStateFlow("observer")
+    val volunteerMode = MutableStateFlow(false)
+    val soundEnabled = MutableStateFlow(false)
 
     private fun logInfo(tag: String, msg: String) {
         try {
