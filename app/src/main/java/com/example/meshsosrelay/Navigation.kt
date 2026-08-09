@@ -55,9 +55,18 @@ import kotlin.math.roundToInt
 fun MainNavigation() {
   // Start stack at Home route
   val backStack = rememberNavBackStack(Home)
-  
-  // Runtime Injection: Providing the real MeshSosController instead of FakeSosController
-  val controller = remember { com.example.meshsosrelay.mesh.MeshSosController() }
+  val context = LocalContext.current
+
+  // M-5 fix: inject real GpsLocationManager so SOS packets carry the device's actual location
+  val gpsManager = remember { com.example.meshsosrelay.sensors.GpsLocationManager(context) }
+
+  // Runtime Injection: Real MeshSosController with GPS support
+  val controller = remember { com.example.meshsosrelay.mesh.MeshSosController(gpsLocationManager = gpsManager) }
+
+  // Clean up the coroutine scope when composition leaves
+  DisposableEffect(Unit) {
+    onDispose { controller.destroy() }
+  }
 
   val sharedCircleState = remember { SharedCircleState() }
   
@@ -83,13 +92,7 @@ fun MainNavigation() {
         },
         entryProvider =
           entryProvider {
-            entry<Main> {
-              HomeScreen(
-                controller = controller,
-                onNavigate = { navKey -> backStack.add(navKey) },
-                modifier = Modifier.padding(16.dp)
-              )
-            }
+            // L-1 fix: removed duplicate entry<Main> — Home is the single entry point
             entry<Home> {
               HomeScreen(
                 controller = controller,

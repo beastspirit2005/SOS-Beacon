@@ -28,8 +28,11 @@ class ScreamDetector(
 ) {
 
     private val permissionManager = PermissionManager(context)
-    private val scope = CoroutineScope(Dispatchers.Default)
+    private val job = SupervisorJob()
+    private val scope = CoroutineScope(Dispatchers.Default + job)
     private var recordingJob: Job? = null
+    private var lastScreamTimestamp = 0L
+    private val SCREAM_COOLDOWN_MS = 30_000L  // 30-second cooldown prevents spam on loud environments
 
     private val _isListening = MutableStateFlow(false)
     val isListening: StateFlow<Boolean> = _isListening.asStateFlow()
@@ -85,11 +88,13 @@ class ScreamDetector(
                         val db = if (rms > 0) (20 * log10(rms)).toFloat() else 0f
                         _currentDb.value = db
 
-                        // Scream threshold (> 78 dB threshold for high-amplitude acoustic distress)
-                        if (db > 78f) {
+                        // Scream threshold (> 78 dB) with 30-second cooldown to prevent spam
+                        val now = System.currentTimeMillis()
+                        if (db > 78f && (now - lastScreamTimestamp) > SCREAM_COOLDOWN_MS) {
+                            lastScreamTimestamp = now
                             val confidence = ((db - 78f) / 30f + 0.70f).coerceAtMost(0.98f)
                             val screamEvent = ScreamEvent(
-                                timestamp = System.currentTimeMillis(),
+                                timestamp = now,
                                 decibels = db,
                                 confidence = confidence
                             )
@@ -111,6 +116,7 @@ class ScreamDetector(
         _isListening.value = false
         recordingJob?.cancel()
         recordingJob = null
+        job.cancel()  // C-5 fix: cancel the supervisor job to clean up the scope
     }
 
     fun simulateScream(db: Float = 85f) {

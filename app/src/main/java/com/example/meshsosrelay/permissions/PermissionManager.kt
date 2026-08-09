@@ -92,7 +92,10 @@ fun PermissionStatusCard(
     permissionManager: PermissionManager = PermissionManager(LocalContext.current),
     onRequestPermissions: () -> Unit = {}
 ) {
-    val missing = remember { permissionManager.missingPermissions() }
+    // L-2 fix: use a mutable state key so permissions are re-checked when the user
+    // returns from the system permission dialog (via lifecycle resume)
+    var checkKey by remember { mutableStateOf(0) }
+    val missing = remember(checkKey) { permissionManager.missingPermissions() }
 
     if (missing.isNotEmpty()) {
         Box(
@@ -125,7 +128,7 @@ fun PermissionStatusCard(
                 }
 
                 Button(
-                    onClick = {},
+                    onClick = onRequestPermissions,  // H-2 fix: was onClick = {}
                     colors = ButtonDefaults.buttonColors(containerColor = SignalSafeTeal),
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),

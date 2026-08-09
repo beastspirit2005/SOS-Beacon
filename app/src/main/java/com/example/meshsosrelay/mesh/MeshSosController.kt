@@ -13,11 +13,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
 import com.example.meshsosrelay.api.BeaconApi
 import com.example.meshsosrelay.api.IngestRequest
 import com.example.meshsosrelay.api.SignatureUtils
 import com.example.meshsosrelay.contract.SosPacket
+import com.example.meshsosrelay.sensors.GpsLocationManager
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -27,10 +30,15 @@ import retrofit2.Retrofit
 import java.util.UUID
 
 /**
- * Arnav's Real MeshSosController implementation.
- * Integrates directly with the mesh core networks transport, SeenCache, and epidemic router.
+ * Real MeshSosController implementation.
+ * Integrates with the backend relay via Retrofit + HMAC-signed packets.
+ *
+ * @param gpsLocationManager Optional GPS manager — if provided, real coordinates are sent.
+ *                           Falls back to a safe default if null or location not yet acquired.
  */
-class MeshSosController : SosController {
+class MeshSosController(
+    private val gpsLocationManager: GpsLocationManager? = null
+) : SosController {
 
     private val _meshState = MutableStateFlow<MeshState>(MeshState.Idle)
     override val meshState: StateFlow<MeshState> = _meshState.asStateFlow()
@@ -38,7 +46,9 @@ class MeshSosController : SosController {
     private val _deliveryState = MutableStateFlow<DeliveryState>(DeliveryState.Idle)
     override val deliveryState: StateFlow<DeliveryState> = _deliveryState.asStateFlow()
 
-    private val scope = CoroutineScope(Dispatchers.IO)
+    // C-4 fix: SupervisorJob gives us lifecycle control — cancel() stops all coroutines cleanly.
+    private val job = SupervisorJob()
+    private val scope = CoroutineScope(Dispatchers.IO + job)
     private val beaconApi: BeaconApi by lazy {
         val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
         val client = OkHttpClient.Builder().addInterceptor(logging).build()
@@ -109,16 +119,22 @@ class MeshSosController : SosController {
                 val msgId = UUID.randomUUID().toString()
                 val originId = "victim-${UUID.randomUUID().toString().take(4)}"
                 val createdAt = System.currentTimeMillis()
-                
+
+                // M-5 fix: Use real GPS coordinates. Falls back to safe defaults if unavailable.
+                val location = gpsLocationManager?.currentLocation?.value
+                val lat = location?.lat ?: 28.6139
+                val lon = location?.lon ?: 77.2090
+                val acc = location?.accuracy ?: 5.0f
+
                 val sig = SignatureUtils.computeSignature(msgId, originId, createdAt, draft.payload)
-                
+
                 val packet = SosPacket(
                     msg_id = msgId,
                     origin_id = originId,
                     created_at = createdAt,
-                    lat = 28.6139,
-                    lon = 77.2090,
-                    acc = 5.0f,
+                    lat = lat,
+                    lon = lon,
+                    acc = acc,
                     severity = draft.severity,
                     confidence = 0.95f,
                     trigger_type = "manual",
@@ -128,12 +144,12 @@ class MeshSosController : SosController {
                     sig = sig,
                     priority = if (draft.severity == "critical") 5 else 3
                 )
-                
+
                 val request = IngestRequest(packet = packet, received_at = System.currentTimeMillis())
                 val gatewayId = "gateway-${UUID.randomUUID().toString().take(6)}"
-                
+
                 val response = beaconApi.ingestSos(gatewayId = gatewayId, request = request)
-                
+
                 if (response.isSuccessful) {
                     logInfo("MeshSosController", "Backend accepted SOS: ${response.body()}")
                     _meshState.value = MeshState.Delivered
@@ -147,6 +163,12 @@ class MeshSosController : SosController {
                 _deliveryState.value = DeliveryState.Idle
             }
         }
+    }
+
+    /** Call this when the controller is no longer needed (e.g. ViewModel.onCleared). */
+    fun destroy() {
+        job.cancel()
+        logDebug("MeshSosController", "Scope cancelled — no more coroutines will run")
     }
 
     fun cycleDeviceRole() {

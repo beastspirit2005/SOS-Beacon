@@ -10,6 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.example.meshsosrelay.theme.MeshSosRelayTheme
+import com.example.meshsosrelay.triggers.SosForegroundService
 import com.example.meshsosrelay.ui.SplashScreen
 import kotlinx.coroutines.delay
 
@@ -24,6 +25,10 @@ import androidx.compose.animation.SharedTransitionLayout
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+    // L-3 fix: Start the foreground service so sensors & mesh relaying
+    // continue running when the app is sent to the background.
+    SosForegroundService.startService(this)
 
     enableEdgeToEdge()
     setContent {

@@ -33,19 +33,20 @@ object ConfidenceEngine {
         } else if (fallEvent != null && screamEvent != null) {
             // Multi-sensor fusion (Fall + Scream combined = extremely high confidence)
             rawConfidence = (fallEvent.confidence * 0.6f + screamEvent.confidence * 0.4f + 0.15f).coerceAtMost(1.0f)
-            triggerType = "fall_scream_fusion"
+            // Backend accepts "fall" or "scream" — use "fall" as primary when both fire simultaneously
+            triggerType = "fall"
             severity = "critical"
         } else if (fallEvent != null) {
             rawConfidence = fallEvent.confidence
-            triggerType = "fall_detection"
+            triggerType = "fall"
             severity = if (fallEvent.gForcePeak > 3.2f) "critical" else "warn"
         } else if (screamEvent != null) {
             rawConfidence = screamEvent.confidence
-            triggerType = "scream_detection"
+            triggerType = "scream"
             severity = if (screamEvent.decibels > 82f) "critical" else "warn"
         } else if (isDeadManTimer) {
             rawConfidence = 0.75f
-            triggerType = "dead_man_timer"
+            triggerType = "missed_checkin"  // matches backend Literal exactly
             severity = "warn"
         }
 
