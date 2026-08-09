@@ -53,8 +53,8 @@ class MeshSosController(
         val client = OkHttpClient.Builder().addInterceptor(logging).build()
         val json = Json { ignoreUnknownKeys = true; isLenient = true }
         Retrofit.Builder()
-            // 10.0.2.2 routes from the Android emulator to Windows localhost
-            .baseUrl("http://10.0.2.2:8000/")
+            // Pointing to the live Vercel production backend
+            .baseUrl("https://sos-beacon-pi.vercel.app/")
             .client(client)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
