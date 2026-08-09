@@ -157,10 +157,11 @@ class MeshSosController(
                     priority = if (draft.severity == "critical") 5 else 3
                 )
 
-                val request = IngestRequest(packet = packet, received_at = System.currentTimeMillis())
                 val gatewayId = "gateway-${UUID.randomUUID().toString().take(6)}"
-
-                val response = beaconApi.ingestSos(gatewayId = gatewayId, request = request)
+                val response = beaconApi.ingestSos(
+                    gatewayId = gatewayId,
+                    request = packet
+                )
 
                 if (response.isSuccessful) {
                     logInfo("MeshSosController", "Backend accepted SOS: ${response.body()}")

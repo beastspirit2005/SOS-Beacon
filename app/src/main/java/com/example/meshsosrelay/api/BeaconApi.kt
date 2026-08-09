@@ -10,6 +10,6 @@ interface BeaconApi {
     suspend fun ingestSos(
         @Header("X-Gateway-Id") gatewayId: String,
         @Header("X-App-Version") appVersion: String = "2.0.0",
-        @Body request: IngestRequest
+        @Body request: com.example.meshsosrelay.contract.SosPacket
     ): Response<IngestResult>
 }

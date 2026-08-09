@@ -11,10 +11,8 @@ data class IngestRequest(
 
 @Serializable
 data class IngestResult(
+    val status: String,
     val sos_id: String,
-    val msg_id: String,
-    val status: String,       // "accepted" | "duplicate"
-    val priority: String,     // "low" | "medium" | "high"
-    val escalation: String,   // "contacts" | "responders"
-    val request_id: String
+    val duplicate: Boolean,
+    val message: String
 )
