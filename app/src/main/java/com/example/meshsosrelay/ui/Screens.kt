@@ -59,6 +59,7 @@ class SharedCircleState {
     var sendingProgress by mutableStateOf(1f)
     var hopCount by mutableStateOf(0)
     var isSearching by mutableStateOf(true)
+    var scale by mutableStateOf(1f)
 
     fun updateTarget(
         screen: String,
@@ -67,7 +68,8 @@ class SharedCircleState {
         color: Color,
         progress: Float = 1f,
         hops: Int = 0,
-        searching: Boolean = true
+        searching: Boolean = true,
+        scale: Float = 1f
     ) {
         isVisible = true
         currentScreen = screen
@@ -77,6 +79,7 @@ class SharedCircleState {
         sendingProgress = progress
         hopCount = hops
         isSearching = searching
+        this.scale = scale
     }
 }
 
@@ -92,7 +95,8 @@ fun SharedCirclePlaceholder(
     modifier: Modifier = Modifier,
     progress: Float = 1f,
     hops: Int = 0,
-    searching: Boolean = true
+    searching: Boolean = true,
+    scale: Float = 1f
 ) {
     val state = LocalSharedCircleState.current
     Box(
@@ -108,7 +112,8 @@ fun SharedCirclePlaceholder(
                         color = color,
                         progress = progress,
                         hops = hops,
-                        searching = searching
+                        searching = searching,
+                        scale = scale
                     )
                 }
             }
@@ -229,18 +234,22 @@ fun DebugNavigationFooter(
 }
 
 @Composable
-fun AmbientNetworkBackground(modifier: Modifier = Modifier) {
+fun AmbientNetworkBackground(
+    peerCount: Int,
+    modifier: Modifier = Modifier
+) {
     val isReducedMotion = isReducedMotionEnabled()
     val infiniteTransition = rememberInfiniteTransition(label = "ambient")
     
+    // Slow, subtle drifting scale for concentric rings
     val radiusMultiplier = if (isReducedMotion) {
         1.0f
     } else {
         val multiplier by infiniteTransition.animateFloat(
-            initialValue = 0.96f,
-            targetValue = 1.04f,
+            initialValue = 0.98f,
+            targetValue = 1.02f,
             animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 8000, easing = EaseInOutSine),
+                animation = tween(durationMillis = 10000, easing = EaseInOutSine),
                 repeatMode = RepeatMode.Reverse
             ),
             label = "radiusScale"
@@ -248,6 +257,7 @@ fun AmbientNetworkBackground(modifier: Modifier = Modifier) {
         multiplier
     }
     
+    // Slow rotation
     val rotationAngle = if (isReducedMotion) {
         0f
     } else {
@@ -255,12 +265,29 @@ fun AmbientNetworkBackground(modifier: Modifier = Modifier) {
             initialValue = 0f,
             targetValue = 360f,
             animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 90000, easing = LinearEasing),
+                animation = tween(durationMillis = 120000, easing = LinearEasing),
                 repeatMode = RepeatMode.Restart
             ),
             label = "rotation"
         )
         angle
+    }
+
+    // Soft ripple when peer count changes
+    val rippleAnim = remember { Animatable(0f) }
+    var previousPeerCount by remember { mutableStateOf(peerCount) }
+    
+    LaunchedEffect(peerCount) {
+        if (!isReducedMotion && peerCount != previousPeerCount) {
+            previousPeerCount = peerCount
+            rippleAnim.snapTo(0f)
+            rippleAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(1200, easing = EaseOutQuad)
+            )
+        } else {
+            previousPeerCount = peerCount
+        }
     }
 
     Canvas(modifier = modifier.fillMaxSize()) {
@@ -270,8 +297,10 @@ fun AmbientNetworkBackground(modifier: Modifier = Modifier) {
         rotate(rotationAngle, center) {
             val lineSpacing = 48.dp.toPx()
             val gridColor = MutedGray.copy(alpha = 0.04f)
+            val nodeColor = MutedGray.copy(alpha = 0.06f)
+            val rayCount = 8
             
-            // Concentric circles
+            // Concentric rings
             for (i in 1..8) {
                 drawCircle(
                     color = gridColor,
@@ -282,7 +311,6 @@ fun AmbientNetworkBackground(modifier: Modifier = Modifier) {
             }
             
             // Radial network rays
-            val rayCount = 8
             for (i in 0 until rayCount) {
                 val angle = (360f / rayCount) * i
                 val angleRad = Math.toRadians(angle.toDouble())
@@ -295,6 +323,33 @@ fun AmbientNetworkBackground(modifier: Modifier = Modifier) {
                     strokeWidth = 1.dp.toPx()
                 )
             }
+
+            // Faint nodes at intersection points
+            for (i in 2..8 step 2) {
+                for (j in 0 until rayCount) {
+                    val angle = (360f / rayCount) * j
+                    val angleRad = Math.toRadians(angle.toDouble())
+                    val dist = (i * lineSpacing) * radiusMultiplier
+                    val nx = center.x + (dist * Math.cos(angleRad)).toFloat()
+                    val ny = center.y + (dist * Math.sin(angleRad)).toFloat()
+                    
+                    drawCircle(
+                        color = nodeColor,
+                        radius = 2.dp.toPx(),
+                        center = Offset(nx, ny)
+                    )
+                }
+            }
+        }
+
+        // Draw soft ripple on peer change (outside rotation)
+        if (rippleAnim.value > 0f && rippleAnim.value < 1f && !isReducedMotion) {
+            drawCircle(
+                color = SignalSafeTeal.copy(alpha = (1f - rippleAnim.value) * 0.12f),
+                radius = rippleAnim.value * maxDim * 0.5f,
+                center = center,
+                style = Stroke(width = 2.dp.toPx())
+            )
         }
     }
 }
@@ -373,7 +428,7 @@ private fun HomeScreenContent(
             .background(CanvasNearBlack)
     ) {
         // Ambient network lines
-        AmbientNetworkBackground()
+        AmbientNetworkBackground(peerCount = peerCount)
 
         if (!permissionGranted) {
             // High-contrast permission state screen
@@ -581,14 +636,21 @@ private fun HomeScreenContent(
                         AnimatedContent(
                             targetState = peerCount,
                             transitionSpec = {
-                                slideInVertically { height -> height } + fadeIn() togetherWith
-                                slideOutVertically { height -> -height } + fadeOut()
+                                if (targetState > initialState) {
+                                    (slideInVertically { height -> height } + fadeIn()).togetherWith(
+                                        slideOutVertically { height -> -height } + fadeOut()
+                                    )
+                                } else {
+                                    (slideInVertically { height -> -height } + fadeIn()).togetherWith(
+                                        slideOutVertically { height -> height } + fadeOut()
+                                    )
+                                }
                             },
                             label = "peerCountAnimation"
                         ) { targetCount ->
                             Text(
                                 text = String.format("%02d", targetCount),
-                                style = MaterialTheme.typography.labelLarge,
+                                style = MaterialTheme.typography.labelLarge.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
                                 color = SignalSafeTeal,
                                 fontWeight = FontWeight.Bold
                             )
@@ -636,11 +698,13 @@ private fun HomeScreenContent(
                             screen = "home",
                             size = 160.dp,
                             color = SignalSosEmber,
+                            scale = scale.value,
                             modifier = Modifier
                                 .scale(scale.value)
                                 .pointerInput(Unit) {
                                     detectTapGestures(
                                         onPress = {
+                                            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                                             scope.launch {
                                                 scale.animateTo(0.85f, animationSpec = MotionTokens.StiffSpring)
                                             }
@@ -650,7 +714,7 @@ private fun HomeScreenContent(
                                             }
                                         },
                                         onTap = {
-                                            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                            view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
                                             onTriggerSos()
                                             onNavigate(Sending)
                                         }
@@ -773,28 +837,36 @@ fun AcceleratingSonarPulse(
     remainingMillis: Int,
     ringCount: Int = 3
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val animFactor by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = LinearEasing)
-        ),
-        label = "pulseAnim"
-    )
-
-    val timeMs = System.currentTimeMillis()
-    val ratio = (remainingMillis / 5000f).coerceIn(0f, 1f)
-    val duration = (800 + (1600 * ratio)).toLong()
+    val isReducedMotion = isReducedMotionEnabled()
+    var phase by remember { mutableStateOf(0f) }
+    
+    LaunchedEffect(isReducedMotion) {
+        if (isReducedMotion) return@LaunchedEffect
+        var lastTime = System.currentTimeMillis()
+        while (true) {
+            val now = System.currentTimeMillis()
+            val dt = (now - lastTime) / 1000f
+            lastTime = now
+            
+            val ratio = (remainingMillis / 5000f).coerceIn(0f, 1f)
+            // Frequency scales smoothly from 0.8Hz (start) to 2.4Hz (end)
+            val hz = 2.4f - 1.6f * ratio
+            phase = (phase + dt * hz) % 1.0f
+            
+            delay(16)
+        }
+    }
 
     Canvas(modifier = modifier) {
         val center = size.center
         val maxRadius = size.minDimension / 2
         
         for (i in 0 until ringCount) {
-            val offsetTime = timeMs - (i * (duration / ringCount))
-            val rawProgress = (offsetTime % duration) / duration.toFloat()
-            val progress = rawProgress.coerceIn(0f, 1f)
+            val progress = if (isReducedMotion) {
+                0.4f
+            } else {
+                (phase - (i.toFloat() / ringCount) + 1.0f) % 1.0f
+            }
             
             val currentRadius = maxRadius * progress
             val alpha = (1f - progress) * 0.4f
@@ -865,93 +937,120 @@ private fun SendingScreenContent(
     onReset: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isReducedMotion = isReducedMotionEnabled()
     var contentVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         delay(150)
         contentVisible = true
     }
 
-    AnimatedVisibility(
-        visible = contentVisible,
-        enter = fadeIn(animationSpec = tween(500)) + slideInVertically(animationSpec = tween(500)) { 30 },
-        exit = fadeOut(animationSpec = tween(300))
+    val progress = (remainingMillis / 5000f).coerceIn(0f, 1f)
+    val intensity = 1f - progress
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(CanvasNearBlack)
     ) {
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .background(CanvasNearBlack)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+        // Subtle background intensifying tint near center/bottom
+        if (!isReducedMotion && intensity > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        androidx.compose.ui.graphics.Brush.radialGradient(
+                            colors = listOf(
+                                SignalSosEmber.copy(alpha = intensity * 0.12f),
+                                Color.Transparent
+                            ),
+                            radius = 1600f
+                        )
+                    )
+            )
+        }
+
+        AnimatedVisibility(
+            visible = contentVisible,
+            enter = fadeIn(animationSpec = tween(500)) + slideInVertically(animationSpec = tween(500)) { 30 },
+            exit = fadeOut(animationSpec = tween(300)),
+            modifier = Modifier.fillMaxSize()
         ) {
             Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(top = 24.dp)
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = "SENDING SOS",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = SignalSosEmber,
-                    letterSpacing = 4.sp
-                )
-                Text(
-                    text = "BROADCAST STAGING",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MutedGray,
-                    letterSpacing = 1.5.sp,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-
-            Box(
-                modifier = Modifier.size(260.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                AcceleratingSonarPulse(
-                    modifier = Modifier.fillMaxSize(),
-                    color = SignalSosEmber,
-                    remainingMillis = remainingMillis,
-                    ringCount = 3
-                )
-
-                SharedCirclePlaceholder(
-                    screen = "sending",
-                    size = 180.dp,
-                    color = SignalSosEmber,
-                    progress = remainingMillis / 5000f
-                )
-            }
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "Emergency alert will broadcast automatically unless cancelled.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MutedGray,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 24.dp)
-                )
-
-                OutlinedButton(
-                    onClick = onCancel,
-                    border = BorderStroke(1.dp, SignalSosEmber.copy(alpha = 0.5f)),
-                    shape = MaterialTheme.shapes.extraLarge,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = SignalSosEmber),
-                    modifier = Modifier.height(54.dp).width(200.dp)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(top = 24.dp)
                 ) {
                     Text(
-                        text = "CANCEL",
+                        text = "SENDING SOS",
                         style = MaterialTheme.typography.labelLarge,
-                        letterSpacing = 2.sp,
-                        fontWeight = FontWeight.Bold
+                        color = SignalSosEmber,
+                        letterSpacing = 4.sp
+                    )
+                    Text(
+                        text = "BROADCAST STAGING",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MutedGray,
+                        letterSpacing = 1.5.sp,
+                        modifier = Modifier.padding(top = 4.dp)
                     )
                 }
-            }
 
-            DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Sending", onReset = onReset)
+                Box(
+                    modifier = Modifier.size(260.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AcceleratingSonarPulse(
+                        modifier = Modifier.fillMaxSize(),
+                        color = SignalSosEmber,
+                        remainingMillis = remainingMillis,
+                        ringCount = 3
+                    )
+
+                    SharedCirclePlaceholder(
+                        screen = "sending",
+                        size = 180.dp,
+                        color = SignalSosEmber,
+                        progress = remainingMillis / 5000f
+                    )
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Emergency alert will broadcast automatically unless cancelled.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MutedGray,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 24.dp)
+                    )
+
+                    OutlinedButton(
+                        onClick = onCancel,
+                        border = BorderStroke(1.dp, SignalSosEmber.copy(alpha = 0.5f)),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = SignalSosEmber),
+                        modifier = Modifier.height(54.dp).width(200.dp)
+                    ) {
+                        Text(
+                            text = "CANCEL",
+                            style = MaterialTheme.typography.labelLarge,
+                            letterSpacing = 2.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                DebugNavigationFooter(onNavigate = onNavigate, currentRoute = "Sending", onReset = onReset)
+            }
         }
     }
 }

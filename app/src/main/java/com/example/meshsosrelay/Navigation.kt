@@ -35,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
@@ -172,10 +173,23 @@ fun FloatingSharedCircle(
     val animSize by animateDpAsState(targetValue = state.targetSize, animationSpec = if (isReducedMotion) snap() else dpSpringSpec, label = "size")
     val animColor by animateColorAsState(targetValue = state.targetColor, animationSpec = if (isReducedMotion) snap() else colorSpringSpec, label = "color")
 
+    val scaleSpringSpec = remember {
+        spring<Float>(
+            stiffness = Spring.StiffnessHigh,
+            dampingRatio = Spring.DampingRatioNoBouncy
+        )
+    }
+    val animScale by animateFloatAsState(
+        targetValue = state.scale,
+        animationSpec = if (isReducedMotion) snap() else scaleSpringSpec,
+        label = "scale"
+    )
+
     Box(
         modifier = Modifier
             .offset { IntOffset(animX.roundToInt(), animY.roundToInt()) }
             .size(animSize)
+            .scale(animScale)
             .clip(CircleShape)
             .background(if (state.currentScreen == "status") SurfaceNearBlack else animColor)
             .then(
