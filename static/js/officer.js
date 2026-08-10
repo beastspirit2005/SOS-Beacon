@@ -70,16 +70,25 @@ function renderQueue(incidents) {
     incidents.forEach(inc => {
         const card = document.createElement('div');
         card.className = `incident-card priority-${inc.priority}`;
+        card.style.cursor = 'pointer';
+        card.onclick = () => focusMap(inc.lat, inc.lon, inc.sos_id);
         card.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                 <span class="severity-badge severity-${inc.severity}">${inc.severity} (P${inc.priority})</span>
                 <span style="font-size: 0.75rem; color: #64748b; font-family: monospace;">${new Date(inc.received_at).toLocaleTimeString()}</span>
             </div>
-            <div style="font-weight: 600; font-size: 0.9rem; color: #f8fafc; margin-bottom: 0.25rem;">${inc.ai_summary || inc.payload}</div>
+            
+            <details style="margin-bottom: 0.75rem; color: #cbd5e1; font-size: 0.85rem;" onclick="event.stopPropagation()">
+                <summary style="cursor: pointer; font-weight: 600; color: #38bdf8; outline: none; margin-bottom: 0.25rem;">View Summary Details</summary>
+                <div style="margin-top: 0.25rem; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 4px; line-height: 1.4;">
+                    ${inc.ai_summary || inc.payload}
+                </div>
+            </details>
+
             <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.75rem;">Status: <strong style="color: #38bdf8;">${inc.status}</strong></div>
             <div style="display: flex; gap: 0.5rem;">
-                <button class="btn-dispatch" onclick="updateStatus('${inc.sos_id}', 'RESPONDING')">Respond</button>
-                <button class="btn-dispatch" style="background: #22c55e; color: white;" onclick="updateStatus('${inc.sos_id}', 'RESOLVED')">Resolve</button>
+                <button class="btn-dispatch" onclick="event.stopPropagation(); updateStatus('${inc.sos_id}', 'RESPONDING')">Respond</button>
+                <button class="btn-dispatch btn-resolve" onclick="event.stopPropagation(); updateStatus('${inc.sos_id}', 'RESOLVED')">Resolve</button>
             </div>
         `;
         list.appendChild(card);
@@ -97,6 +106,15 @@ function renderQueue(incidents) {
             document.getElementById('alertSound').play().catch(e => {});
         }
     });
+}
+
+function focusMap(lat, lon, sos_id) {
+    if (map) {
+        map.setView([lat, lon], 16, { animate: true, duration: 1.5 });
+        if (markers[sos_id]) {
+            markers[sos_id].openPopup();
+        }
+    }
 }
 
 async function updateStatus(sos_id, new_status) {
