@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "main.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "main.py" },
+    { "src": "/(.*\\.html)", "dest": "/static/$1" },
+    { "src": "/(.*\\.css)", "dest": "/static/$1" },
+    { "src": "/(.*\\.js)", "dest": "/static/$1" },
+    { "src": "/", "dest": "/static/landing.html" },
+    { "src": "/victim", "dest": "/static/victim.html" },
+    { "src": "/officer", "dest": "/static/officer.html" },
+    { "src": "/admin", "dest": "/static/admin.html" }
+  ]
+}
