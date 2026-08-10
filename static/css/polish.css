@@ -1,0 +1,98 @@
+/* ============================================================
+   PROJECT BEACON — Cosmetic Polish Pass
+   Strictly additive. Revertible by removing link to this file.
+   ============================================================ */
+
+/* 1. Base Interactive Elements Transitions */
+.nav-link,
+.btn,
+.portal-card,
+.flow-node,
+.input-field {
+  transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 2. Interactive Element Focus Outlines */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+/* 3. Hover Lift and Affordances */
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.flow-node:hover {
+  transform: translateY(-2px);
+}
+
+/* 4. Normalise Cursor & Remove iOS Tap Flash */
+a,
+button,
+select,
+summary,
+[role="button"],
+input[type="submit"],
+input[type="button"],
+input[type="reset"] {
+  cursor: pointer;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 5. Typography Readability Tweaks */
+h1, h2, h3, h4 {
+  line-height: 1.15;
+}
+
+/* 6. Theme-Matched Scrollbar Styles */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-elevated) var(--bg-surface);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-elevated);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 211, 238, 0.25);
+}
+
+/* 7. Smooth Scroll Offset (for fixed nav menu protection) */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+
+/* 8. Reduced Motion Media Query */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-delay: -1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
