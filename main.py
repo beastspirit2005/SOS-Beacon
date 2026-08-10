@@ -100,24 +100,28 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ---------------------------------------------------------------------------
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+import os
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 app.include_router(api_router, prefix="/api/v1")
 
 @app.get("/")
 async def serve_landing():
-    return FileResponse("static/landing.html")
+    return FileResponse(os.path.join(STATIC_DIR, "landing.html"))
 
 @app.get("/victim")
 async def serve_victim():
-    return FileResponse("static/victim.html")
+    return FileResponse(os.path.join(STATIC_DIR, "victim.html"))
 
 @app.get("/officer")
 async def serve_officer():
-    return FileResponse("static/officer.html")
+    return FileResponse(os.path.join(STATIC_DIR, "officer.html"))
 
 @app.get("/admin")
 async def serve_admin():
-    return FileResponse("static/admin.html")
+    return FileResponse(os.path.join(STATIC_DIR, "admin.html"))
 
