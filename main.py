@@ -113,6 +113,14 @@ app.include_router(api_router, prefix="/api/v1")
 async def serve_landing():
     return FileResponse(os.path.join(STATIC_DIR, "landing.html"))
 
+@app.get("/{page}.html")
+async def serve_html_pages(page: str):
+    file_path = os.path.join(STATIC_DIR, f"{page}.html")
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    from fastapi import HTTPException
+    raise HTTPException(status_code=404, detail="Page not found")
+
 @app.get("/victim")
 async def serve_victim():
     return FileResponse(os.path.join(STATIC_DIR, "victim.html"))
