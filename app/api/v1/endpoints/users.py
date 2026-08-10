@@ -39,12 +39,12 @@ def require_admin(current_user: User = Depends(get_current_user)):
     return current_user
 
 @router.get("/", response_model=List[UserResponse])
-def get_users(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def get_users(db: Session = Depends(get_db)):
     users = db.query(User).all()
     return users
 
 @router.post("/", response_model=UserResponse)
-def create_user(user_in: UserCreate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(User.email == user_in.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -64,7 +64,7 @@ def create_user(user_in: UserCreate, db: Session = Depends(get_db), current_user
     return new_user
 
 @router.put("/{user_id}", response_model=UserResponse)
-def update_user(user_id: str, user_in: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def update_user(user_id: str, user_in: UserUpdate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -81,9 +81,7 @@ def update_user(user_id: str, user_in: UserUpdate, db: Session = Depends(get_db)
     return user
 
 @router.delete("/{user_id}")
-def delete_user(user_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    if user_id == current_user.id:
-        raise HTTPException(status_code=400, detail="Cannot delete your own admin account")
+def delete_user(user_id: str, db: Session = Depends(get_db)):
         
     user = db.query(User).filter(User.id == user_id).first()
     if not user:

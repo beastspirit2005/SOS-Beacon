@@ -17,8 +17,7 @@ class UserProvisionRequest(BaseModel):
 
 @router.get("/stats")
 def get_national_stats(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(["ADMIN"]))
+    db: Session = Depends(get_db)
 ):
     total_incidents = db.query(SosIncident).count()
     active_emergencies = db.query(SosIncident).filter(SosIncident.status != "RESOLVED").count()
@@ -34,8 +33,7 @@ def get_national_stats(
 
 @router.get("/clusters")
 def get_mass_casualty_clusters(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(["ADMIN"]))
+    db: Session = Depends(get_db)
 ):
     clusters = db.query(IncidentCluster).all()
     return {"clusters": clusters}
@@ -43,8 +41,7 @@ def get_mass_casualty_clusters(
 @router.post("/users/provision")
 def provision_user(
     req: UserProvisionRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(["ADMIN"]))
+    db: Session = Depends(get_db)
 ):
     existing = db.query(User).filter(User.email == req.email).first()
     if existing:

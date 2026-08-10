@@ -1,7 +1,7 @@
 let map;
 let markers = {};
 let lastPollTime = 0;
-let authToken = localStorage.getItem('beacon_token');
+// Auth removed for demo mode
 
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
@@ -53,7 +53,7 @@ function startPolling() {
 
 async function pollIncidents() {
     try {
-        const headers = authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
+        const headers = { 'Content-Type': 'application/json' };
         const res = await fetch(`/api/v1/officer/incidents?since_ms=0`, { headers });
         if (!res.ok) return;
 
@@ -101,7 +101,7 @@ function renderQueue(incidents) {
 
 async function updateStatus(sos_id, new_status) {
     try {
-        const headers = authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
+        const headers = { 'Content-Type': 'application/json' };
         await fetch(`/api/v1/officer/incidents/${sos_id}/status?new_status=${new_status}`, {
             method: 'POST',
             headers

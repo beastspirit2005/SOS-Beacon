@@ -1,5 +1,4 @@
-let authToken = localStorage.getItem('beacon_token');
-
+// Auth removed for demo mode
 document.addEventListener('DOMContentLoaded', () => {
     fetchStats();
     fetchUsers();
@@ -8,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchStats() {
     try {
-        const headers = authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
+        const headers = { 'Content-Type': 'application/json' };
         const res = await fetch('/api/v1/admin/stats', { headers });
         if (!res.ok) return;
 
@@ -24,9 +23,7 @@ let allUsers = [];
 
 async function fetchUsers() {
     try {
-        const res = await fetch('/api/v1/users', {
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
+        const res = await fetch('/api/v1/users');
         if (!res.ok) return;
         allUsers = await res.json();
         renderUserTable();
@@ -98,8 +95,7 @@ async function saveUser() {
 
     try {
         const headers = { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
+            'Content-Type': 'application/json'
         };
 
         let url = '/api/v1/users';
@@ -133,8 +129,7 @@ async function deleteUser(id) {
     
     try {
         const res = await fetch(`/api/v1/users/${id}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${authToken}` }
+            method: 'DELETE'
         });
         if (!res.ok) throw new Error(await res.text());
         fetchUsers();
