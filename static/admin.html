@@ -6,6 +6,7 @@
     <title>Project Beacon | National Administration & Cluster Telemetry</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
     <link rel="stylesheet" href="/static/css/index.css?v=3.0">
 </head>
 <body>
@@ -103,6 +104,27 @@
             </div>
         </div>
 
+        <!-- Live Incident Map & Queue -->
+        <div class="glass-panel" style="margin-bottom: 1.5rem; height: 700px; padding: 0; display: flex; overflow: hidden;">
+            <div class="sidebar" style="width: 400px; border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; background: rgba(5,8,12,0.95);">
+                <div class="sidebar-header" style="padding: var(--space-padding); border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.05rem; color: var(--text-primary); font-weight: 700;">Live Incident Queue</h3>
+                        <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">Global SOS Feed</p>
+                    </div>
+                    <span id="queueCount" class="beacon-status-pill" style="font-size: 0.75rem;">0 Active</span>
+                </div>
+                <div class="incident-list" id="incidentList" style="flex: 1; overflow-y: auto; padding: var(--space-padding); display: flex; flex-direction: column; gap: var(--space-gap);">
+                    <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+                        <p style="font-size: 0.9rem;">Monitoring Global Ingestion Streams...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="map-view" style="flex: 1; position: relative; background: #030507;">
+                <div id="map" style="width: 100%; height: 100%;"></div>
+            </div>
+        </div>
+
         <!-- Mass Casualty Incident Cluster Telemetry Panel -->
         <div class="glass-panel">
             <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.4rem; font-family: var(--font-mono);">
@@ -119,6 +141,7 @@
             </div>
         </div>
 
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
         <script src="/static/js/mesh-bg.js?v=3.0"></script>
         <script src="/static/js/admin.js?v=3.0"></script>
 </body>

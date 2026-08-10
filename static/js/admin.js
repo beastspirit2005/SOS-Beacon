@@ -1,8 +1,15 @@
 // Auth removed for demo mode
 document.addEventListener('DOMContentLoaded', () => {
+    initMap();
     fetchStats();
     fetchUsers();
-    setInterval(fetchStats, 5000);
+    fetchIncidents();
+    fetchClusters();
+    setInterval(() => {
+        fetchStats();
+        fetchIncidents();
+        fetchClusters();
+    }, 5000);
 });
 
 async function fetchStats() {
@@ -136,4 +143,113 @@ async function deleteUser(id) {
     } catch (e) {
         alert("Failed to delete user: " + e.message);
     }
+}
+
+
+
+// --- Map and Queue Logic ---
+let map;
+let markers = {};
+
+function initMap() {
+    map = L.map('map').setView([28.6139, 77.2090], 5); // zoomed out for national view
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap contributors © CARTO'
+    }).addTo(map);
+}
+
+async function fetchIncidents() {
+    try {
+        const headers = { 'Content-Type': 'application/json' };
+        const res = await fetch(`/api/v1/officer/incidents?since_ms=0`, { headers });
+        if (!res.ok) return;
+        const data = await res.json();
+        renderQueue(data.incidents || []);
+    } catch (e) {}
+}
+
+function renderQueue(incidents) {
+    const list = document.getElementById('incidentList');
+    if(!list) return;
+    document.getElementById('queueCount').innerText = `${incidents.length} Active`;
+    list.innerHTML = '';
+    
+    incidents.forEach(inc => {
+        const card = document.createElement('div');
+        card.className = `incident-card priority-${inc.priority}`;
+        card.style.cursor = 'pointer';
+        card.onclick = () => focusMap(inc.lat, inc.lon, inc.sos_id);
+        card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <span class="severity-badge severity-${inc.severity}">${inc.severity} (P${inc.priority})</span>
+                <span style="font-size: 0.75rem; color: #64748b; font-family: monospace;">${new Date(inc.received_at).toLocaleTimeString()}</span>
+            </div>
+            <details style="margin-bottom: 0.75rem; color: #cbd5e1; font-size: 0.85rem;" onclick="event.stopPropagation()">
+                <summary style="cursor: pointer; font-weight: 600; color: #38bdf8; outline: none; margin-bottom: 0.25rem;">View Summary Details</summary>
+                <div style="margin-top: 0.25rem; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 4px; line-height: 1.4;">
+                    ${inc.ai_summary || inc.payload}
+                </div>
+            </details>
+            <div style="font-size: 0.8rem; color: #94a3b8;">Status: <strong style="color: #38bdf8;">${inc.status}</strong></div>
+        `;
+        list.appendChild(card);
+
+        if (!markers[inc.sos_id]) {
+            const marker = L.circleMarker([inc.lat, inc.lon], {
+                color: inc.severity === 'CRITICAL' ? '#ef4444' : '#f59e0b',
+                radius: 8,
+                fillOpacity: 0.8
+            }).addTo(map);
+            marker.bindPopup(`<b>${inc.severity}</b><br>${inc.ai_summary || inc.payload}`);
+            markers[inc.sos_id] = marker;
+        }
+    });
+}
+
+function focusMap(lat, lon, sos_id) {
+    if (map) {
+        map.setView([lat, lon], 16, { animate: true, duration: 1.5 });
+        if (markers[sos_id]) {
+            markers[sos_id].openPopup();
+        }
+    }
+}
+
+// --- Clusters Logic ---
+async function fetchClusters() {
+    try {
+        const headers = { 'Content-Type': 'application/json' };
+        const res = await fetch('/api/v1/admin/clusters', { headers });
+        if (!res.ok) return;
+        const data = await res.json();
+        renderClusters(data.clusters || []);
+    } catch (e) {}
+}
+
+function renderClusters(clusters) {
+    const container = document.getElementById('clustersContainer');
+    if(!container) return;
+    if (clusters.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted); grid-column: 1 / -1;"><p style="font-size: 0.9rem;">No active mass casualty clusters detected.</p></div>';
+        return;
+    }
+    container.innerHTML = '';
+    clusters.forEach(c => {
+        const card = document.createElement('div');
+        card.style.background = 'rgba(255,255,255,0.02)';
+        card.style.border = '1px solid rgba(255,59,48,0.3)';
+        card.style.padding = '1rem';
+        card.style.borderRadius = '8px';
+        card.style.boxShadow = '0 0 15px rgba(255,59,48,0.1)';
+        
+        card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span style="font-weight: 700; color: #ef4444;">Cluster Radius: ${c.radius_m}m</span>
+                <span style="background: #ef4444; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">${c.victim_count} VICTIMS</span>
+            </div>
+            <div style="font-size: 0.85rem; color: #cbd5e1; margin-bottom: 0.5rem;">Center: [${c.center_lat.toFixed(4)}, ${c.center_lon.toFixed(4)}]</div>
+            <div style="font-size: 0.75rem; color: #94a3b8;">Active since: ${new Date(c.created_at).toLocaleString()}</div>
+        `;
+        container.appendChild(card);
+    });
 }
