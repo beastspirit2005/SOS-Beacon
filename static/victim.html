@@ -3,58 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Beacon | Citizen Emergency SOS</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <title>Project Beacon | Citizen Emergency SOS Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚨</text></svg>">
-    <link rel="stylesheet" href="/static/css/index.css">
+    <link rel="stylesheet" href="/static/css/index.css?v=3.0">
     <style>
-        body { font-family: 'Inter', sans-serif; background: #090d16; color: #f3f4f6; margin: 0; padding: 1rem; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .sos-card { background: rgba(17, 24, 39, 0.95); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 20px; padding: 2rem; width: 100%; max-width: 450px; box-shadow: 0 20px 50px rgba(239, 68, 68, 0.15); text-align: center; }
-        
-        .sos-btn-wrapper { position: relative; width: 180px; height: 180px; margin: 2rem auto; }
-        .sos-btn { width: 100%; height: 100%; border-radius: 50%; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border: 4px solid #fca5a5; color: white; font-size: 2.2rem; font-weight: 800; cursor: pointer; box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4); transition: transform 0.2s ease, box-shadow 0.2s ease; outline: none; }
-        .sos-btn:active { transform: scale(0.95); }
-        .sos-btn-pulse { position: absolute; top: -10px; left: -10px; right: -10px; bottom: -10px; border-radius: 50%; border: 2px solid #ef4444; animation: pulse 2s infinite; pointer-events: none; }
-        @keyframes pulse { 0% { transform: scale(0.9); opacity: 1; } 100% { transform: scale(1.3); opacity: 0; } }
-
-        .timeline-tracker { margin-top: 2rem; border-top: 1px solid #1e293b; padding-top: 1.5rem; text-align: left; }
-        .timeline-step { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; font-size: 0.9rem; color: #64748b; }
-        .timeline-step.active { color: #38bdf8; font-weight: 600; }
-        .timeline-step.completed { color: #2de1c4; }
-        .step-icon { width: 24px; height: 24px; border-radius: 50%; border: 2px solid currentColor; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; }
-        
-        .cancel-box { background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; border-radius: 12px; padding: 1rem; margin-top: 1rem; display: none; }
-        .cancel-btn { background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 0.5rem; }
+        .timeline-step {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.92rem;
+            color: var(--text-muted);
+            transition: color 0.3s ease;
+        }
+        .timeline-step.active {
+            color: var(--color-cyan);
+            font-weight: 600;
+        }
+        .timeline-step.completed {
+            color: var(--color-green);
+            font-weight: 600;
+        }
+        .step-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid currentColor;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+        .cancel-box {
+            background: rgba(255, 59, 48, 0.12);
+            border: 1px solid var(--color-red);
+            border-radius: var(--radius-md);
+            padding: 1.25rem;
+            margin: 1.5rem 0;
+            display: none;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
-    <div class="sos-card">
-        <h2 style="color: #f8fafc; margin: 0 0 0.5rem;">BEACON SOS</h2>
-        <p style="color: #94a3b8; font-size: 0.9rem; margin: 0;">Offline Emergency Mesh Broadcast</p>
 
-        <div class="sos-btn-wrapper">
-            <div class="sos-btn-pulse"></div>
-            <button id="sosButton" onclick="triggerSos()" class="sos-btn">SOS</button>
+    <!-- Enterprise Top Navigation Bar with Fancy Glassmorphic Pill Tabs -->
+    <nav class="beacon-navbar">
+        <a href="landing.html" class="beacon-brand">
+            <div class="beacon-logo-icon">🚨</div>
+            <span class="beacon-brand-name">PROJECT BEACON</span>
+        </a>
+
+        <div class="beacon-nav-links">
+            <a href="landing.html" class="beacon-nav-item">📊 Overview</a>
+            <a href="victim.html" class="beacon-nav-item active">🚨 Citizen SOS</a>
+            <a href="officer.html" class="beacon-nav-item">🛡️ Officer Command</a>
+            <a href="admin.html" class="beacon-nav-item">⚙️ National Admin</a>
         </div>
 
-        <textarea id="payloadText" placeholder="Emergency description (e.g. Trapped near flooded road, need medical assistance)" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: #f8fafc; padding: 0.75rem; border-radius: 8px; font-family: inherit; margin-bottom: 1rem; box-sizing: border-box; resize: vertical;" rows="3"></textarea>
+        <div>
+            <a href="login.html" class="btn-auth-blue">
+                🔑 Login / Auth
+            </a>
+        </div>
+    </nav>
 
-        <div id="cancelBox" class="cancel-box">
-            <span style="color: #fca5a5; font-size: 0.85rem;">Emergency Signal Initiated. Cancel window active: <span id="countdown">5</span>s</span>
-            <br>
-            <button onclick="cancelSos()" class="cancel-btn">CANCEL EMERGENCY</button>
+    <div class="app-container" style="max-width: 620px;">
+        <div class="glass-panel text-center" style="position: relative; z-index: 10;">
+            <h2 style="font-size: 2rem; font-weight: 900; color: var(--text-primary); margin-bottom: 0.25rem; letter-spacing: 1px;">
+                BEACON SOS
+            </h2>
+            <p style="color: var(--text-muted); font-size: 0.92rem; margin-bottom: 1rem;">
+                Offline Emergency Mesh Broadcast & Sensor Triage
+            </p>
+
+            <!-- MASSIVE GIANT GLOWING RED SOS BUTTON CONTAINER & LIVE SONAR RINGS -->
+            <div class="sos-trigger-container">
+                <div class="sos-button-wrapper">
+                    <!-- Live Double Expanding Sonar Rings -->
+                    <div class="sos-sonar-ring"></div>
+                    <div class="sos-sonar-ring" style="animation-delay: 1.5s;"></div>
+
+                    <!-- Circular Progress Ring SVG (320px x 320px) -->
+                    <svg class="sos-progress-svg" viewBox="0 0 320 320">
+                        <circle class="sos-progress-bg" cx="160" cy="160" r="150"></circle>
+                        <circle id="sosProgressFill" class="sos-progress-fill" cx="160" cy="160" r="150"></circle>
+                    </svg>
+
+                    <!-- Giant 260px x 260px Red Glowing Breathing SOS Button -->
+                    <button id="sosButton" onclick="triggerSos()" class="sos-primary-btn">
+                        SOS
+                        <span class="sos-btn-sub" style="font-size: 0.85rem !important; font-weight: 800 !important; letter-spacing: 2px !important; color: #ffffff !important; display: block !important; margin-top: 4px !important; font-family: var(--font-mono) !important;">PRESS & HOLD 2S</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Emergency Payload Text Input -->
+            <textarea id="payloadText" class="beacon-input" placeholder="Describe emergency (e.g. Trapped near flooded road, need immediate medical assistance)" rows="3" style="resize: vertical; margin-bottom: 1rem; font-size: 0.95rem;"></textarea>
+
+            <!-- Cancel Countdown Overlay Box -->
+            <div id="cancelBox" class="cancel-box">
+                <p style="color: #ff6b6b; font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem;">
+                    🚨 Emergency Signal Initiated! Cancel window active: <span id="countdown" style="font-family: var(--font-mono); font-size: 1.2rem; font-weight: bold; color: #ffffff;">5</span>s
+                </p>
+                <button onclick="cancelSos()" class="btn-danger" style="padding: 0.6rem 1.25rem; font-size: 0.85rem;">
+                    CANCEL EMERGENCY BROADCAST
+                </button>
+            </div>
+
+            <!-- Transmission Lifecycle Tracker -->
+            <div style="margin-top: 1.75rem; border-top: 1px solid var(--border-subtle); padding-top: 1.25rem; text-align: left;">
+                <h4 style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.82rem; font-family: var(--font-mono); letter-spacing: 1px; text-transform: uppercase;">
+                    Transmission Lifecycle & Routing
+                </h4>
+
+                <div class="timeline-step" id="step1">
+                    <div class="step-icon">1</div>
+                    <span>SOS Packet Created & Signed (HMAC-SHA256)</span>
+                </div>
+
+                <div class="timeline-step" id="step2">
+                    <div class="step-icon">2</div>
+                    <span>Multi-Hop Mesh Peer Broadcast (Bluetooth/Wi-Fi Direct)</span>
+                </div>
+
+                <div class="timeline-step" id="step3">
+                    <div class="step-icon">3</div>
+                    <span>Ingested by Gateway Relay Device</span>
+                </div>
+
+                <div class="timeline-step" id="step4">
+                    <div class="step-icon">4</div>
+                    <span>FastAPI Cloud Backend & Groq Llama-3 AI Triage</span>
+                </div>
+
+                <div class="timeline-step" id="step5">
+                    <div class="step-icon">5</div>
+                    <span>Emergency Officer Responding & Dispatched</span>
+                </div>
+            </div>
         </div>
 
-        <div class="timeline-tracker">
-            <h4 style="color: #cbd5e1; margin: 0 0 1rem; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Transmission Lifecycle</h4>
-            <div class="timeline-step" id="step1"><div class="step-icon">1</div> SOS Created & Signed</div>
-            <div class="timeline-step" id="step2"><div class="step-icon">2</div> Mesh Peer Broadcast</div>
-            <div class="timeline-step" id="step3"><div class="step-icon">3</div> Ingested by Gateway</div>
-            <div class="timeline-step" id="step4"><div class="step-icon">4</div> Cloud Backend & AI Triage</div>
-            <div class="timeline-step" id="step5"><div class="step-icon">5</div> Officer Responding</div>
-        </div>
-    </div>
-
-    <script src="/static/js/victim.js"></script>
+        <script src="/static/js/mesh-bg.js?v=3.0"></script>
+        <script src="/static/js/victim.js?v=3.0"></script>
 </body>
 </html>

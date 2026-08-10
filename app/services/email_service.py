@@ -80,3 +80,40 @@ def send_emergency_alert_email(to_email: str, incident_data: dict):
     except Exception as e:
         logger.error(f"Failed sending emergency alert email: {e}")
         return False
+
+def send_victim_confirmation_email(to_email: str, incident_data: dict):
+    """
+    Dispatches a confirmation email to the victim that their SOS was received.
+    """
+    if not BREVO_API_KEY:
+        logger.warning(f"BREVO_API_KEY missing. Mocking victim confirmation to {to_email}")
+        return True
+
+    url = "https://api.brevo.com/v3/smtp/email"
+    headers = {
+        "accept": "application/json",
+        "api-key": BREVO_API_KEY,
+        "content-type": "application/json"
+    }
+    payload = {
+        "sender": {"name": "Project Beacon", "email": "no-reply@projectbeacon.app"},
+        "to": [{"email": to_email}],
+        "subject": f"✅ SOS Received: Help is on the way ({incident_data.get('sos_id')})",
+        "htmlContent": f"""
+        <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #0f172a; color: #f8fafc; border-radius: 8px;">
+            <h2 style="color: #2de1c4;">PROJECT BEACON</h2>
+            <p>Your emergency SOS distress signal has been successfully received by our command center.</p>
+            <p><strong>Incident ID:</strong> {incident_data.get('sos_id')}</p>
+            <p><strong>Status:</strong> Our AI Triage engine has processed your request and alerted nearby responders.</p>
+            <p style="font-size: 12px; color: #94a3b8;">Stay calm and remain at your location if it is safe to do so.</p>
+        </div>
+        """
+    }
+
+    try:
+        res = requests.post(url, json=payload, headers=headers, timeout=5)
+        res.raise_for_status()
+        return True
+    except Exception as e:
+        logger.error(f"Failed sending victim confirmation email: {e}")
+        return False
