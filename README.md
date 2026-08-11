@@ -245,5 +245,5 @@ Pull requests are welcome. Please read `API_CONTRACT.md` before adding or renami
 ---
 
 <p align="center">
-  Built for <strong>Bharat Academix CodeQuest 2026</strong> · MIT License
+ · MIT License
 </p>
