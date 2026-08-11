@@ -53,7 +53,12 @@ function renderQueue(incidents) {
                 <span class="severity-badge severity-${inc.severity}" style="padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; font-weight: bold; background: rgba(255,59,48,0.15); color: var(--color-red);">${inc.severity} (P${inc.priority})</span>
                 <span style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">${new Date(inc.received_at).toLocaleTimeString()}</span>
             </div>
-            <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary); margin-bottom: 0.25rem;">${inc.ai_summary || inc.payload}</div>
+            <details style="margin-bottom: 0.75rem; color: var(--text-secondary); font-size: 0.85rem;" onclick="event.stopPropagation()">
+                <summary style="cursor: pointer; font-weight: 600; color: var(--color-cyan); outline: none; margin-bottom: 0.25rem;">View Summary Details</summary>
+                <div style="margin-top: 0.25rem; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 4px; line-height: 1.4;">
+                    ${inc.ai_summary || inc.payload}
+                </div>
+            </details>
             <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">Status: <strong style="color: var(--color-cyan);">${inc.status}</strong></div>
             <div style="display: flex; gap: 0.5rem;">
                 <button class="btn-primary" style="padding: 4px 10px; font-size: 0.78rem;" onclick="updateStatus('${inc.sos_id}', 'RESPONDING')">Respond</button>
