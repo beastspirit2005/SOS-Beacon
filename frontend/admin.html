@@ -68,7 +68,8 @@
                 Provision national administrator accounts and regional emergency officer credentials.
             </p>
 
-            <div style="display: flex; flex-wrap: wrap; gap: var(--space-padding); align-items: center;">
+            <div style="display: flex; flex-wrap: wrap; gap: var(--space-padding); align-items: center; margin-bottom: 1.5rem;">
+                <input type="hidden" id="provUserId">
                 <input type="email" id="provEmail" placeholder="Officer / Admin Email" class="beacon-input" style="flex: 1; min-width: 220px;">
                 <input type="text" id="provName" placeholder="Full Name / Officer Rank" class="beacon-input" style="flex: 1; min-width: 200px;">
                 
@@ -78,11 +79,32 @@
                     <option value="VICTIM">VICTIM</option>
                 </select>
 
-                <input type="text" id="provRegion" placeholder="Jurisdiction Region (e.g. DL-CENTRAL)" class="beacon-input" style="flex: 1; min-width: 200px;">
+                <input type="password" id="provPassword" placeholder="Set Password (New Only)" class="beacon-input" style="flex: 1; min-width: 200px;">
 
-                <button onclick="provisionUser()" class="btn-primary" style="padding: 0.85rem 1.5rem;">
-                    PROVISION IDENTITY
-                </button>
+                <div style="display: flex; gap: 0.5rem; flex: 1; min-width: 200px;">
+                    <button id="btnSaveUser" onclick="saveUser()" class="btn-primary" style="padding: 0.85rem 1.5rem; flex: 1;">
+                        PROVISION IDENTITY
+                    </button>
+                    <button id="btnClearForm" onclick="clearUserForm()" class="btn-primary" style="padding: 0.85rem 1.5rem; background: rgba(255,255,255,0.1); display: none;">
+                        CLEAR
+                    </button>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border-subtle); color: var(--text-muted); text-align: left;">
+                            <th style="padding: 10px;">Email</th>
+                            <th style="padding: 10px;">Name / Rank</th>
+                            <th style="padding: 10px;">Role</th>
+                            <th style="padding: 10px; text-align: right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody">
+                        <!-- Users will be populated here -->
+                    </tbody>
+                </table>
             </div>
         </div>
 
