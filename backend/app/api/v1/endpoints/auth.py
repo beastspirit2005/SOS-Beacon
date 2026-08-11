@@ -4,75 +4,68 @@ import uuid
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from passlib.context import CryptContext
 from ....database.connection import get_db
-from ....database.models import User, OtpToken
-from ....services.email_service import send_otp_email
+from ....database.models import User
 from ....services.auth import create_access_token, get_current_user
 
 router = APIRouter()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-class OtpRequest(BaseModel):
+class SignupRequest(BaseModel):
     email: str
+    password: str
+    name: str = None
 
-class OtpVerifyRequest(BaseModel):
+class LoginRequest(BaseModel):
     email: str
-    otp_code: str
+    password: str
 
-@router.post("/request-otp")
-def request_otp(request: OtpRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == request.email).first()
+@router.post("/signup")
+def signup(request: SignupRequest, db: Session = Depends(get_db)):
+    existing_user = db.query(User).filter(User.email == request.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+        
+    role = "ADMIN" if db.query(User).count() == 0 else "VICTIM"
+    name = request.name if request.name else request.email.split("@")[0].capitalize()
     
-    # Auto-provision user on first OTP request if database is empty or user doesn't exist
-    if not user:
-        role = "ADMIN" if db.query(User).count() == 0 else "VICTIM"
-        user = User(
-            id=str(uuid.uuid4()),
-            email=request.email,
-            name=request.email.split("@")[0].capitalize(),
-            role=role,
-            created_at=int(time.time() * 1000),
-            updated_at=int(time.time() * 1000)
-        )
-        db.add(user)
-        db.commit()
-
-    otp_code = str(random.randint(100000, 999999))
-    expires_at = int(time.time() * 1000) + (5 * 60 * 1000)
+    hashed_password = pwd_context.hash(request.password)
     
-    token_record = OtpToken(
+    user = User(
         id=str(uuid.uuid4()),
         email=request.email,
-        otp_code=otp_code,
-        expires_at=expires_at,
-        created_at=int(time.time() * 1000)
+        name=name,
+        password_hash=hashed_password,
+        role=role,
+        created_at=int(time.time() * 1000),
+        updated_at=int(time.time() * 1000)
     )
-    db.add(token_record)
+    db.add(user)
     db.commit()
     
-    send_otp_email(request.email, otp_code)
-    
-    return {"message": "OTP sent successfully to email", "email": request.email}
+    access_token = create_access_token(data={"sub": user.email, "role": user.role, "id": user.id})
+    return {
+        "message": "Account created successfully",
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role
+        }
+    }
 
-@router.post("/verify-otp")
-def verify_otp(request: OtpVerifyRequest, db: Session = Depends(get_db)):
-    current_time = int(time.time() * 1000)
-    
-    token_record = db.query(OtpToken).filter(
-        OtpToken.email == request.email,
-        OtpToken.otp_code == request.otp_code,
-        OtpToken.is_used == False,
-        OtpToken.expires_at > current_time
-    ).first()
-    
-    if not token_record:
-        raise HTTPException(status_code=401, detail="Invalid or expired OTP code")
-        
-    token_record.is_used = True
-    db.commit()
-    
+@router.post("/login")
+def login(request: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == request.email).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User account not found")
+    
+    if not user or not user.password_hash:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+        
+    if not pwd_context.verify(request.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
         
     access_token = create_access_token(data={"sub": user.email, "role": user.role, "id": user.id})
     

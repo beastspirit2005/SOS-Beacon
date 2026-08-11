@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Beacon | Enlist</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+    <link rel="stylesheet" href="/static/css/index.css?v=3.0">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0b0f19; color: #f3f4f6; margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; }
+        .auth-container { max-width: 400px; margin: 4rem auto; background: rgba(5, 8, 12, 0.7); backdrop-filter: blur(10px); padding: 2.5rem; border-radius: 12px; border: 1px solid var(--border-subtle); box-shadow: var(--glow-medium); }
+        .auth-container h2 { text-align: center; color: var(--text-primary); font-family: var(--font-mono); margin-bottom: 2rem; }
+        .auth-form-group { margin-bottom: 1.5rem; }
+        .auth-form-group label { display: block; margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+        .auth-form-group input { width: 100%; box-sizing: border-box; padding: 0.75rem; background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-primary); font-family: var(--font-mono); }
+        .auth-form-group input:focus { outline: none; border-color: var(--color-cyan); box-shadow: 0 0 0 2px rgba(45, 225, 196, 0.2); }
+        .auth-btn { width: 100%; padding: 0.85rem; background: linear-gradient(135deg, var(--color-cyan), var(--color-green)); border: none; border-radius: 6px; color: #000; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
+        .auth-btn:hover { opacity: 0.9; }
+        .auth-link { text-align: center; margin-top: 1.5rem; font-size: 0.85rem; }
+        .auth-link a { color: var(--color-cyan); text-decoration: none; }
+        .auth-link a:hover { text-decoration: underline; }
+        #signupMsg { margin-top: 1rem; text-align: center; font-size: 0.85rem; }
+        .error { color: var(--color-red); }
+        .success { color: var(--color-green); }
+    </style>
+</head>
+<body>
+    <nav class="beacon-navbar">
+        <a href="landing.html" class="beacon-brand">
+            <div class="beacon-logo-icon">🛡️</div>
+            <span class="beacon-brand-name">PROJECT BEACON</span>
+        </a>
+    </nav>
+
+    <div class="app-container" style="flex: 1;">
+        <div class="auth-container">
+            <h2>ENLIST IN NETWORK</h2>
+            <div class="auth-form-group">
+                <label>Full Name</label>
+                <input type="text" id="signupName" placeholder="John Doe" required>
+            </div>
+            <div class="auth-form-group">
+                <label>Email Address</label>
+                <input type="email" id="signupEmail" placeholder="officer@beacon.app" required>
+            </div>
+            <div class="auth-form-group">
+                <label>Password</label>
+                <input type="password" id="signupPassword" placeholder="••••••••" required>
+            </div>
+            <button class="auth-btn" onclick="handleSignup()">CREATE IDENTITY ➔</button>
+            <div id="signupMsg"></div>
+            
+            <div class="auth-link">
+                Already have an account? <a href="login.html">Login</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/mesh-bg.js?v=3.0"></script>
+    <script>
+        async function handleSignup() {
+            const name = document.getElementById('signupName').value;
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            const msgDiv = document.getElementById('signupMsg');
+            
+            if (!email || !password || !name) {
+                msgDiv.className = 'error';
+                msgDiv.innerText = 'All fields are required.';
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/v1/auth/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, name })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    msgDiv.className = 'success';
+                    msgDiv.innerText = 'Account created! Redirecting...';
+                    localStorage.setItem('beacon_token', data.access_token);
+                    
+                    setTimeout(() => {
+                        window.location.href = 'victim.html';
+                    }, 1000);
+                } else {
+                    msgDiv.className = 'error';
+                    msgDiv.innerText = data.detail || 'Signup failed.';
+                }
+            } catch (err) {
+                msgDiv.className = 'error';
+                msgDiv.innerText = 'Network error occurred.';
+            }
+        }
+    </script>
+</body>
+</html>

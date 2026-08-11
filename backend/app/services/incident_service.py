@@ -2,21 +2,24 @@ import time
 import uuid
 import logging
 from sqlalchemy.orm import Session
-from ..database.models import SosIncident, IncidentEvent, IncidentCluster, GatewayLog
+from fastapi import BackgroundTasks
+from ..database.models import SosIncident, IncidentEvent, IncidentCluster, GatewayLog, User
 from ..schemas.packet import SosPacket
 from .groq_ai import enrich_incident_with_groq
 from .redis_bus import publish_event
+from .email_service import send_victim_confirmation_email, send_emergency_alert_email
 
 logger = logging.getLogger(__name__)
 
-def process_incoming_packet(packet: SosPacket, db: Session) -> dict:
+def process_incoming_packet(packet: SosPacket, db: Session, background_tasks: BackgroundTasks = None) -> dict:
     """
     Core Incident Engine:
     1. Validates & deduplicates packet by msg_id and gateway logging.
     2. Performs Groq AI Triage & enrichment.
     3. Normalizes and persists to PostgreSQL.
     4. Evaluates proximity to detect Mass Casualty Incident Clusters.
-    5. Publishes event to Redis Streams for downstream websocket & notification dispatchers.
+    5. Dispatches email alerts (Victim, Officers, Admins).
+    6. Publishes event to Redis Streams for downstream websocket & notification dispatchers.
     """
     current_time = int(time.time() * 1000)
 
@@ -90,6 +93,20 @@ def process_incoming_packet(packet: SosPacket, db: Session) -> dict:
 
     # Evaluate Cluster Detection (Blueprint Section 28)
     check_and_update_cluster(incident, db)
+
+    # Email Dispatch (Victim, Officers, Admins)
+    if background_tasks:
+        # Victim Confirmation
+        victim = db.query(User).filter(User.id == packet.origin_id).first()
+        if victim and victim.email:
+            incident.victim_id = victim.id
+            db.commit()
+            background_tasks.add_task(send_victim_confirmation_email, victim.email, incident.__dict__)
+            
+        # Admin & Officer Alerts
+        responders = db.query(User).filter(User.role.in_(["ADMIN", "OFFICER"])).all()
+        for responder in responders:
+            background_tasks.add_task(send_emergency_alert_email, responder.email, incident.__dict__)
 
     # Publish to Event Bus
     publish_event("sos.created", {

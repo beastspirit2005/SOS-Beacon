@@ -1,7 +1,7 @@
 let map;
 let markers = {};
 let lastPollTime = 0;
-let authToken = localStorage.getItem('beacon_token');
+// Auth removed for demo mode
 
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
@@ -46,6 +46,8 @@ function renderQueue(incidents) {
     incidents.forEach(inc => {
         const card = document.createElement('div');
         card.className = `incident-card priority-${inc.priority}`;
+        card.style.cursor = 'pointer';
+        card.onclick = () => focusMap(inc.lat, inc.lon, inc.sos_id);
         card.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                 <span class="severity-badge severity-${inc.severity}" style="padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; font-weight: bold; background: rgba(255,59,48,0.15); color: var(--color-red);">${inc.severity} (P${inc.priority})</span>
@@ -73,6 +75,15 @@ function renderQueue(incidents) {
             document.getElementById('alertSound').play().catch(e => {});
         }
     });
+}
+
+function focusMap(lat, lon, sos_id) {
+    if (map) {
+        map.setView([lat, lon], 16, { animate: true, duration: 1.5 });
+        if (markers[sos_id]) {
+            markers[sos_id].openPopup();
+        }
+    }
 }
 
 async function updateStatus(sos_id, new_status) {
