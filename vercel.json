@@ -7,9 +7,15 @@
     }
   ],
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "main.py"
-    }
+    { "src": "/api/(.*)", "dest": "main.py" },
+    { "src": "/static/(.*)", "dest": "/static/$1" },
+    { "src": "/(.*\\.html)", "dest": "/static/$1" },
+    { "src": "/css/(.*)", "dest": "/static/css/$1" },
+    { "src": "/js/(.*)", "dest": "/static/js/$1" },
+    { "src": "/victim", "dest": "/static/victim.html" },
+    { "src": "/officer", "dest": "/static/officer.html" },
+    { "src": "/admin", "dest": "/static/admin.html" },
+    { "src": "/", "dest": "/static/landing.html" },
+    { "src": "/(.*)", "dest": "main.py" }
   ]
 }
