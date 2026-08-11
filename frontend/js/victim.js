@@ -33,8 +33,11 @@ window.triggerSos = function () {
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
       (pos) => sendSosPacket(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy || 8.0, payloadText),
-      () => sendSosPacket(28.6139, 77.2090, 12.0, payloadText), // Mock fallback: New Delhi emergency center
-      { timeout: 3000, enableHighAccuracy: true }
+      (err) => {
+          console.warn("Geolocation failed:", err.message);
+          sendSosPacket(28.6139, 77.2090, 12.0, payloadText); // Mock fallback: New Delhi emergency center
+      },
+      { timeout: 15000, maximumAge: 10000, enableHighAccuracy: true }
     );
   } else {
     sendSosPacket(28.6139, 77.2090, 15.0, payloadText);
