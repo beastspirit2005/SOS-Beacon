@@ -10,7 +10,7 @@ let countdownVal = 5;
 let pollInterval = null;
 
 // Backup Cloud Gateway Ingest Endpoint (Vercel Production Cloud)
-const CLOUD_GATEWAY_URL = 'https://sos-beacon-pi.vercel.app/api/v1/sos/ingest';
+const CLOUD_GATEWAY_URL = '/api/v1/sos/ingest';
 const LOCAL_GATEWAY_URL = '/api/v1/sos/ingest';
 
 window.triggerSos = function () {

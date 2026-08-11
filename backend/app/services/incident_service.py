@@ -76,7 +76,9 @@ def process_incoming_packet(packet: SosPacket, db: Session, background_tasks: Ba
         delivery_status="delivered"
     )
     
+    
     db.add(incident)
+    db.flush() # Force insert before event creation to satisfy PostgreSQL Foreign Key constraints
 
     # Record lifecycle creation event
     event = IncidentEvent(
