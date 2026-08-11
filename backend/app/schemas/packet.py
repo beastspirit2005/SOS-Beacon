@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, AliasChoices
 from typing import Optional
 
 class SosPacket(BaseModel):
@@ -15,5 +15,5 @@ class SosPacket(BaseModel):
     ttl: int = Field(default=7, ge=0, le=15, description="Time to live / max hops remaining")
     hops: int = Field(default=0, ge=0, description="Number of hops traversed")
     payload: str = Field(..., description="Emergency description or message")
-    signature: str = Field(default="UNSIGNED", description="ECDSA digital signature")
+    sig: str = Field(default="UNSIGNED", validation_alias=AliasChoices("sig", "signature"), description="ECDSA digital signature or HMAC hash")
     gateway_id: Optional[str] = Field(default=None, description="ID of gateway that ingested this packet")

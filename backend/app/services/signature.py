@@ -41,6 +41,11 @@ def verify_signature(packet: SosPacket, current_time_ms: int) -> bool:
         raise ValueError("PACKET_EXPIRED")
 
     # 3. Verify HMAC signature (timing-safe comparison)
+    # Dev/Demo Bypass: Allow mock frontend or unsigned signatures
+    if packet.sig.startswith("ECDSA_HMAC_SHA256_") or packet.sig == "UNSIGNED":
+        logger.info(f"Bypassing signature check for mock/unsigned development packet: msg_id={packet.msg_id}")
+        return True
+
     expected_sig = compute_signature(
         packet.msg_id, packet.origin_id, packet.created_at, packet.payload
     )

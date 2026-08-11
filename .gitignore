@@ -1,5 +1,6 @@
 # Python Backend
 .env
+.env.*
 __pycache__/
 *.pyc
 .pytest_cache/
@@ -8,6 +9,11 @@ __pycache__/
 venv/
 .venv/
 *.log
+
+# Node & Frontend
+node_modules/
+dist/
+.vercel/
 
 # Android (from frontend team)
 .gradle/

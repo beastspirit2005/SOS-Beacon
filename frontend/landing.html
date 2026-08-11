@@ -6,6 +6,7 @@
     <title>Project Beacon | Emergency Communication Fabric</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚨</text></svg>">
+    <link rel="stylesheet" href="css/index.css?v=3.0">
     <link rel="stylesheet" href="/static/css/index.css?v=3.0">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0b0f19; color: #f3f4f6; margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; }
@@ -45,7 +46,9 @@
         </div>
 
         <div>
-
+            <a href="#authSection" id="navAuthBtn" class="btn-auth-blue" onclick="scrollToAuthSection()">
+                🔑 Login / Auth
+            </a>
         </div>
     </nav>
 
@@ -103,6 +106,65 @@
         </div>
     </div>
 
+    <!-- Dedicated Bottom Authentication Console -->
+    <div class="app-container" style="padding-top: 0;">
+        <div id="authSection" class="glass-panel" style="margin-top: 1.5rem; border-color: var(--color-cyan); box-shadow: var(--glow-medium);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                <div class="beacon-logo-icon" style="width: 34px; height: 34px; font-size: 1rem; background: linear-gradient(135deg, var(--color-cyan), var(--color-green));">🔑</div>
+                <div>
+                    <h3 style="font-size: 1.2rem; font-weight: 800; font-family: var(--font-mono); color: var(--text-primary); margin: 0;">
+                        IDENTITY AUTHENTICATION & PROVISIONING CONSOLE
+                    </h3>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 2px;">
+                        Brevo SMTP 6-Digit OTP Login & RBAC Identity Control
+                    </p>
+                </div>
+            </div>
+
+            <!-- STEP 1: Email Form -->
+            <div id="authBottomStepEmail" style="max-width: 540px;">
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; font-size: 0.78rem; font-family: var(--font-mono); color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase;">
+                        OFFICIAL WORK EMAIL
+                    </label>
+                    <input type="email" id="authBottomEmailInput" class="beacon-input" placeholder="officer@beacon.app" />
+                </div>
+
+                <button id="btnBottomSendOtp" onclick="handleBottomSendOtp()" class="btn-primary" style="padding: 0.85rem 1.5rem; width: 100%;">
+                    REQUEST 6-DIGIT OTP CODE ➔
+                </button>
+                <div id="authBottomEmailMsg" style="font-size: 0.82rem; text-align: center; margin-top: 0.85rem; color: var(--color-cyan); display: none;"></div>
+            </div>
+
+            <!-- STEP 2: 6-Digit OTP Grid -->
+            <div id="authBottomStepOtp" style="max-width: 540px; display: none;">
+                <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 0.5rem;">
+                    Enter 6-digit verification code sent to <strong id="authBottomTargetEmail" style="color: var(--color-cyan);"></strong>.
+                </p>
+                <p style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--color-orange); margin-bottom: 1rem;">
+                    ⏱️ CODE EXPIRES IN: <span id="authBottomTimer">05:00</span>
+                </p>
+
+                <div class="otp-box-grid">
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="0" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="1" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="2" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="3" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="4" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="5" />
+                </div>
+
+                <button id="btnBottomVerifyOtp" onclick="handleBottomVerifyOtp()" class="btn-primary" style="padding: 0.85rem 1.5rem; width: 100%;">
+                    VERIFY & AUTHENTICATE ➔
+                </button>
+                <div id="authBottomOtpMsg" style="font-size: 0.82rem; text-align: center; margin-top: 0.85rem; color: var(--color-red); display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/mesh-bg.js?v=3.0"></script>
     <script src="/static/js/mesh-bg.js?v=3.0"></script>
+    <script src="js/auth-modal.js?v=3.0"></script>
+    <script src="/static/js/auth-modal.js?v=3.0"></script>
 </body>
 </html>
